@@ -318,6 +318,14 @@
       min-width: 84px;
     }
 
+    #step-2 input[type="number"],
+    #step-3 input[type="number"],
+    #step-4 input[type="number"],
+    #step-4 select {
+      width: 50%;
+      margin: 0 auto;
+    }
+
     @media (max-width: 900px) {
       .proficiency-table th,
       .proficiency-table td {
@@ -612,14 +620,7 @@
     };
 
     const buildMonthlyProductsTable = () => {
-      const head = document.querySelector("#monthly-products-table thead");
       const body = monthlyProductsBody;
-      head.innerHTML = `
-        <tr>
-          <th>Products / Quarter</th>
-          ${monthLabels.map((label) => `<th class="vertical-header"><span>${label}</span></th>`).join("")}
-        </tr>
-      `;
       const defaultRates = monthLabels.map((_, index) => (index < 12 ? 6 : index < 24 ? 7 : 8));
       body.innerHTML = `
         <tr>
@@ -787,12 +788,6 @@
     const renderProficiencyTable = (teams, redThreshold, orangeThreshold) => {
       const header = `
         <table class="proficiency-table compact-table">
-          <thead>
-            <tr>
-              <th>Team</th>
-              ${monthLabels.map((label) => `<th class="vertical-header"><span>${label}</span></th>`).join("")}
-            </tr>
-          </thead>
           <tbody>
       `;
 
