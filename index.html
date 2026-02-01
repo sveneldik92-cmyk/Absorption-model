@@ -274,6 +274,50 @@
       padding: 3px;
     }
 
+    .table-scroll {
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    .compact-table {
+      width: max-content;
+      min-width: 100%;
+      margin: 0;
+      table-layout: auto;
+    }
+
+    .compact-table th,
+    .compact-table td {
+      padding: 0;
+      min-width: 84px;
+    }
+
+    .compact-table th:first-child,
+    .compact-table td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: #ffffff;
+      min-width: 160px;
+      box-shadow: 2px 0 0 #e5e7eb;
+    }
+
+    .compact-table thead th:first-child {
+      z-index: 3;
+      background: #f8fafc;
+    }
+
+    .compact-table input[type="number"],
+    .compact-table input[type="text"] {
+      padding: 0;
+      min-width: 72px;
+      height: 28px;
+    }
+
+    .compact-table .vertical-header {
+      min-width: 84px;
+    }
+
     @media (max-width: 900px) {
       .proficiency-table th,
       .proficiency-table td {
@@ -402,10 +446,12 @@
         Enter planned production in products per quarter (unit) for each month from 2026 through 2028. These values
         drive the staffing projections below.
       </p>
-      <table id="monthly-products-table">
-        <thead></thead>
-        <tbody></tbody>
-      </table>
+      <div class="table-scroll">
+        <table id="monthly-products-table" class="compact-table">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
       <div class="meta">
         <span class="badge" id="quarter-balance"></span>
         <span class="note">Quarterly rates are used directly for staffing projections.</span>
@@ -422,7 +468,8 @@
       <p>
         Define how quickly new employees reach full proficiency. This curve is applied to each month of hires.
       </p>
-      <table id="training-table">
+      <div class="table-scroll">
+        <table id="training-table" class="compact-table">
         <thead>
           <tr>
             <th>Month Since Hire</th>
@@ -472,7 +519,8 @@
             <td><input type="number" min="0" max="100" value="100" /></td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -504,7 +552,7 @@
         </label>
       </div>
       <div class="card" style="margin-top: 16px;">
-        <div id="proficiency-table"></div>
+        <div class="table-scroll" id="proficiency-table"></div>
         <div id="proficiency-chart" class="hidden chart-wrapper">
           <canvas id="chart-canvas" height="120"></canvas>
         </div>
@@ -738,7 +786,7 @@
 
     const renderProficiencyTable = (teams, redThreshold, orangeThreshold) => {
       const header = `
-        <table class="proficiency-table">
+        <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
