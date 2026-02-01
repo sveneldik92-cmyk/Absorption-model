@@ -105,6 +105,16 @@
       text-align: center;
     }
 
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+
     .grid {
       display: grid;
       gap: 16px;
@@ -225,16 +235,37 @@
     }
 
     .vertical-header {
-      height: 160px;
+      height: 130px;
       vertical-align: bottom;
-      padding: 4px;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .vertical-header span {
       display: inline-block;
       transform: rotate(-90deg);
-      transform-origin: left bottom;
+      transform-origin: center;
       white-space: nowrap;
+    }
+
+    #monthly-products-table,
+    .proficiency-table {
+      table-layout: fixed;
+    }
+
+    #monthly-products-table th,
+    #monthly-products-table td,
+    .proficiency-table th,
+    .proficiency-table td {
+      padding: 4px;
+      font-size: 0.75rem;
+    }
+
+    #monthly-products-table th.vertical-header,
+    .proficiency-table th.vertical-header {
+      width: 36px;
     }
   </style>
 </head>
@@ -262,8 +293,11 @@
         <thead>
           <tr>
             <th>Team</th>
-            <th>Current Staff</th>
-            <th>Current Products / Quarter</th>
+            <th>
+              Current staff for
+              <div class="subtle">Products / Quarter</div>
+              <input class="current-product-input" type="number" min="0" step="1" value="4" />
+            </th>
             <th>High-Fit Share (%)</th>
             <th>
               Staffing for
@@ -291,7 +325,6 @@
           <tr>
             <td><input type="text" value="Core Platform" /></td>
             <td><input type="number" min="0" value="18" /></td>
-            <td><input type="number" min="0" step="1" value="6" /></td>
             <td><input type="number" min="0" max="100" step="1" value="60" /></td>
             <td><input type="number" min="0" step="1" value="22" /></td>
             <td><input type="number" min="0" step="1" value="28" /></td>
@@ -301,7 +334,6 @@
           <tr>
             <td><input type="text" value="Data Systems" /></td>
             <td><input type="number" min="0" value="12" /></td>
-            <td><input type="number" min="0" step="1" value="4" /></td>
             <td><input type="number" min="0" max="100" step="1" value="55" /></td>
             <td><input type="number" min="0" step="1" value="15" /></td>
             <td><input type="number" min="0" step="1" value="19" /></td>
@@ -311,7 +343,6 @@
           <tr>
             <td><input type="text" value="Client Success" /></td>
             <td><input type="number" min="0" value="15" /></td>
-            <td><input type="number" min="0" step="1" value="5" /></td>
             <td><input type="number" min="0" max="100" step="1" value="50" /></td>
             <td><input type="number" min="0" step="1" value="18" /></td>
             <td><input type="number" min="0" step="1" value="23" /></td>
@@ -324,11 +355,8 @@
         <button type="button" id="export-csv">Export CSV</button>
         <button type="button" id="import-csv">Import CSV</button>
         <input type="file" id="csv-file" accept=".csv" />
-        <label>
-          Add level (products/quarter)
-          <input type="number" id="add-level-value" min="0" step="1" value="10" />
-        </label>
         <button type="button" id="add-level">Add column</button>
+        <button type="button" id="remove-level">Remove column</button>
       </div>
       <p class="note">Tip: Paste from Excel/Sheets directly into the table to fill multiple cells.</p>
       <div class="grid">
@@ -502,7 +530,8 @@
     const importCsvButton = document.getElementById("import-csv");
     const csvFileInput = document.getElementById("csv-file");
     const addLevelButton = document.getElementById("add-level");
-    const addLevelValue = document.getElementById("add-level-value");
+    const removeLevelButton = document.getElementById("remove-level");
+    const currentProductInput = document.querySelector(".current-product-input");
 
     let chartInstance = null;
 
@@ -522,7 +551,7 @@
       head.innerHTML = `
         <tr>
           <th>Products / Quarter</th>
-          ${monthLabels.map((label) => `<th>${label}</th>`).join("")}
+          ${monthLabels.map((label) => `<th class="vertical-header"><span>${label}</span></th>`).join("")}
         </tr>
       `;
       const defaultRates = monthLabels.map((_, index) => (index < 12 ? 6 : index < 24 ? 7 : 8));
@@ -548,13 +577,12 @@
       return rows.map((row) => {
         const inputs = row.querySelectorAll("input");
         const staffingLevels = Array.from(inputs)
-          .slice(4, 4 + levelCount)
+          .slice(3, 3 + levelCount)
           .map((input) => Number(input.value) || 0);
         return {
           name: inputs[0].value || "Team",
           current: Number(inputs[1].value) || 0,
-          currentProducts: Number(inputs[2].value) || 0,
-          highFitShare: Number(inputs[3].value) || 0,
+          highFitShare: Number(inputs[2].value) || 0,
           staffingLevels,
         };
       });
@@ -692,7 +720,7 @@
 
     const renderProficiencyTable = (teams, redThreshold, orangeThreshold) => {
       const header = `
-        <table>
+        <table class="proficiency-table">
           <thead>
             <tr>
               <th>Team</th>
@@ -804,7 +832,6 @@
       row.innerHTML = `
         <td><input type="text" value="" /></td>
         <td><input type="number" min="0" value="0" /></td>
-        <td><input type="number" min="0" step="1" value="0" /></td>
         <td><input type="number" min="0" max="100" step="1" value="50" /></td>
         ${staffingCells}
       `;
@@ -864,10 +891,10 @@
 
     const exportCsv = () => {
       const productLevels = getProductLevels();
+      const currentProductLevel = Number(currentProductInput?.value) || 0;
       const header = [
         "Team",
-        "Current Staff",
-        "Current Products/Quarter",
+        `Current staff @ ${currentProductLevel} products/qtr`,
         "High-Fit Share (%)",
         ...productLevels.map((level) => `Staff needed @ ${level} products/qtr`),
       ];
@@ -897,7 +924,7 @@
           return;
         }
         const header = rows[0];
-        const requiredLevels = Math.max(0, header.length - 4);
+        const requiredLevels = Math.max(0, header.length - 3);
         const currentLevels = getProductLevels().length;
         if (requiredLevels > currentLevels) {
           for (let i = currentLevels; i < requiredLevels; i += 1) {
@@ -905,19 +932,23 @@
           }
         }
         const productLevelInputs = Array.from(document.querySelectorAll(".product-level-input"));
-        header.slice(4).forEach((cell, index) => {
+        header.slice(3).forEach((cell, index) => {
           const match = cell.match(/([0-9]+(?:\.[0-9]+)?)/);
           if (match && productLevelInputs[index]) {
             productLevelInputs[index].value = match[1];
           }
         });
+        const currentMatch = header[1]?.match(/([0-9]+(?:\.[0-9]+)?)/);
+        if (currentMatch && currentProductInput) {
+          currentProductInput.value = currentMatch[1];
+        }
         const dataRows = rows.slice(1);
         ensureTeamRowCount(dataRows.length);
         const levelCount = getProductLevels().length;
         dataRows.forEach((dataRow, rowIndex) => {
           const row = teamTable.tBodies[0].rows[rowIndex];
           const inputs = row.querySelectorAll("input");
-          const values = dataRow.slice(0, 4 + levelCount);
+          const values = dataRow.slice(0, 3 + levelCount);
           values.forEach((value, index) => {
             if (inputs[index]) {
               inputs[index].value = value;
@@ -955,6 +986,20 @@
         const cell = document.createElement("td");
         cell.innerHTML = `<input type="number" min="0" step="1" value="0" />`;
         row.appendChild(cell);
+      });
+      bindInputs();
+      recompute();
+    };
+
+    const removeProductLevelColumn = () => {
+      const headerRow = teamTable.tHead.rows[0];
+      const productInputs = headerRow.querySelectorAll(".product-level-input");
+      if (productInputs.length <= 1) {
+        return;
+      }
+      headerRow.deleteCell(headerRow.cells.length - 1);
+      Array.from(teamTable.tBodies[0].rows).forEach((row) => {
+        row.deleteCell(row.cells.length - 1);
       });
       bindInputs();
       recompute();
@@ -1013,8 +1058,9 @@
       csvFileInput.value = "";
     });
     addLevelButton.addEventListener("click", () => {
-      addProductLevelColumn(Number(addLevelValue.value) || 0);
+      addProductLevelColumn(0);
     });
+    removeLevelButton.addEventListener("click", removeProductLevelColumn);
     teamTable.addEventListener("paste", handleTeamTablePaste);
 
     buildMonthlyProductsTable();
