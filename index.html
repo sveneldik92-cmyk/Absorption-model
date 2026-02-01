@@ -223,6 +223,19 @@
       font-size: 0.8rem;
       font-weight: 500;
     }
+
+    .vertical-header {
+      height: 160px;
+      vertical-align: bottom;
+      padding: 4px;
+    }
+
+    .vertical-header span {
+      display: inline-block;
+      transform: rotate(-90deg);
+      transform-origin: left bottom;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -250,6 +263,8 @@
           <tr>
             <th>Team</th>
             <th>Current Staff</th>
+            <th>Current Products / Quarter</th>
+            <th>High-Fit Share (%)</th>
             <th>
               Staffing for
               <div class="subtle">Products / Quarter</div>
@@ -276,26 +291,32 @@
           <tr>
             <td><input type="text" value="Core Platform" /></td>
             <td><input type="number" min="0" value="18" /></td>
-            <td><input type="number" min="0" step="0.1" value="22" /></td>
-            <td><input type="number" min="0" step="0.1" value="28" /></td>
-            <td><input type="number" min="0" step="0.1" value="36" /></td>
-            <td><input type="number" min="0" step="0.1" value="44" /></td>
+            <td><input type="number" min="0" step="1" value="6" /></td>
+            <td><input type="number" min="0" max="100" step="1" value="60" /></td>
+            <td><input type="number" min="0" step="1" value="22" /></td>
+            <td><input type="number" min="0" step="1" value="28" /></td>
+            <td><input type="number" min="0" step="1" value="36" /></td>
+            <td><input type="number" min="0" step="1" value="44" /></td>
           </tr>
           <tr>
             <td><input type="text" value="Data Systems" /></td>
             <td><input type="number" min="0" value="12" /></td>
-            <td><input type="number" min="0" step="0.1" value="15" /></td>
-            <td><input type="number" min="0" step="0.1" value="19" /></td>
-            <td><input type="number" min="0" step="0.1" value="24" /></td>
-            <td><input type="number" min="0" step="0.1" value="30" /></td>
+            <td><input type="number" min="0" step="1" value="4" /></td>
+            <td><input type="number" min="0" max="100" step="1" value="55" /></td>
+            <td><input type="number" min="0" step="1" value="15" /></td>
+            <td><input type="number" min="0" step="1" value="19" /></td>
+            <td><input type="number" min="0" step="1" value="24" /></td>
+            <td><input type="number" min="0" step="1" value="30" /></td>
           </tr>
           <tr>
             <td><input type="text" value="Client Success" /></td>
             <td><input type="number" min="0" value="15" /></td>
-            <td><input type="number" min="0" step="0.1" value="18" /></td>
-            <td><input type="number" min="0" step="0.1" value="23" /></td>
-            <td><input type="number" min="0" step="0.1" value="29" /></td>
-            <td><input type="number" min="0" step="0.1" value="36" /></td>
+            <td><input type="number" min="0" step="1" value="5" /></td>
+            <td><input type="number" min="0" max="100" step="1" value="50" /></td>
+            <td><input type="number" min="0" step="1" value="18" /></td>
+            <td><input type="number" min="0" step="1" value="23" /></td>
+            <td><input type="number" min="0" step="1" value="29" /></td>
+            <td><input type="number" min="0" step="1" value="36" /></td>
           </tr>
         </tbody>
       </table>
@@ -303,7 +324,13 @@
         <button type="button" id="export-csv">Export CSV</button>
         <button type="button" id="import-csv">Import CSV</button>
         <input type="file" id="csv-file" accept=".csv" />
+        <label>
+          Add level (products/quarter)
+          <input type="number" id="add-level-value" min="0" step="1" value="10" />
+        </label>
+        <button type="button" id="add-level">Add column</button>
       </div>
+      <p class="note">Tip: Paste from Excel/Sheets directly into the table to fill multiple cells.</p>
       <div class="grid">
         <div class="card">
           <strong>Total New Hires (2026-2028)</strong>
@@ -328,22 +355,16 @@
     </div>
     <div class="section-body">
       <p>
-        Enter planned production in products per quarter (unit) for each month from 2026 through 2028. The table
-        translates that quarterly rate into monthly output to support downstream staffing timelines.
+        Enter planned production in products per quarter (unit) for each month from 2026 through 2028. These values
+        drive the staffing projections below.
       </p>
       <table id="monthly-products-table">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>Products / Quarter</th>
-            <th>Products / Month</th>
-          </tr>
-        </thead>
+        <thead></thead>
         <tbody></tbody>
       </table>
       <div class="meta">
         <span class="badge" id="quarter-balance"></span>
-        <span class="note">Monthly values are converted from the quarterly rate by dividing by three.</span>
+        <span class="note">Quarterly rates are used directly for staffing projections.</span>
       </div>
     </div>
   </section>
@@ -377,7 +398,22 @@
         </thead>
         <tbody>
           <tr>
-            <td>Training / Proficiency (%)</td>
+            <td>Low-Fit Proficiency (%)</td>
+            <td><input type="number" min="0" max="100" value="0" /></td>
+            <td><input type="number" min="0" max="100" value="18" /></td>
+            <td><input type="number" min="0" max="100" value="32" /></td>
+            <td><input type="number" min="0" max="100" value="45" /></td>
+            <td><input type="number" min="0" max="100" value="55" /></td>
+            <td><input type="number" min="0" max="100" value="65" /></td>
+            <td><input type="number" min="0" max="100" value="74" /></td>
+            <td><input type="number" min="0" max="100" value="82" /></td>
+            <td><input type="number" min="0" max="100" value="88" /></td>
+            <td><input type="number" min="0" max="100" value="93" /></td>
+            <td><input type="number" min="0" max="100" value="97" /></td>
+            <td><input type="number" min="0" max="100" value="100" /></td>
+          </tr>
+          <tr>
+            <td>High-Fit Proficiency (%)</td>
             <td><input type="number" min="0" max="100" value="0" /></td>
             <td><input type="number" min="0" max="100" value="25" /></td>
             <td><input type="number" min="0" max="100" value="45" /></td>
@@ -408,8 +444,12 @@
       </p>
       <div class="meta">
         <label>
-          Proficiency threshold (%)
-          <input type="number" id="threshold" min="0" max="100" value="80" />
+          Red threshold (%)
+          <input type="number" id="threshold-red" min="0" max="100" value="80" />
+        </label>
+        <label>
+          Orange threshold (%)
+          <input type="number" id="threshold-orange" min="0" max="100" value="90" />
         </label>
         <label class="toggle">
           View
@@ -452,7 +492,8 @@
     const peakHeadcount = document.getElementById("peak-headcount");
     const yearEnd = document.getElementById("year-end");
     const quarterBalance = document.getElementById("quarter-balance");
-    const thresholdInput = document.getElementById("threshold");
+    const thresholdRedInput = document.getElementById("threshold-red");
+    const thresholdOrangeInput = document.getElementById("threshold-orange");
     const viewToggle = document.getElementById("view-toggle");
     const proficiencyTable = document.getElementById("proficiency-table");
     const proficiencyChart = document.getElementById("proficiency-chart");
@@ -460,10 +501,12 @@
     const exportCsvButton = document.getElementById("export-csv");
     const importCsvButton = document.getElementById("import-csv");
     const csvFileInput = document.getElementById("csv-file");
+    const addLevelButton = document.getElementById("add-level");
+    const addLevelValue = document.getElementById("add-level-value");
 
     let chartInstance = null;
 
-    const formatNumber = (value, decimals = 1) => {
+    const formatNumber = (value, decimals = 0) => {
       if (!Number.isFinite(value)) {
         return "-";
       }
@@ -474,17 +517,26 @@
     };
 
     const buildMonthlyProductsTable = () => {
-      monthlyProductsBody.innerHTML = "";
-      monthLabels.forEach((label, index) => {
-        const row = document.createElement("tr");
-        const defaultRate = index < 12 ? 6 : index < 24 ? 7 : 8;
-        row.innerHTML = `
-          <td>${label}</td>
-          <td><input type="number" min="0" step="0.1" value="${defaultRate}" /></td>
-          <td class="monthly-output"></td>
-        `;
-        monthlyProductsBody.appendChild(row);
-      });
+      const head = document.querySelector("#monthly-products-table thead");
+      const body = monthlyProductsBody;
+      head.innerHTML = `
+        <tr>
+          <th>Products / Quarter</th>
+          ${monthLabels.map((label) => `<th>${label}</th>`).join("")}
+        </tr>
+      `;
+      const defaultRates = monthLabels.map((_, index) => (index < 12 ? 6 : index < 24 ? 7 : 8));
+      body.innerHTML = `
+        <tr>
+          <td class="subtle">Rate</td>
+          ${defaultRates
+            .map(
+              (value) =>
+                `<td><input class="monthly-product-input" type="number" min="0" step="1" value="${value}" /></td>`
+            )
+            .join("")}
+        </tr>
+      `;
     };
 
     const getProductLevels = () =>
@@ -496,21 +548,30 @@
       return rows.map((row) => {
         const inputs = row.querySelectorAll("input");
         const staffingLevels = Array.from(inputs)
-          .slice(2, 2 + levelCount)
+          .slice(4, 4 + levelCount)
           .map((input) => Number(input.value) || 0);
         return {
           name: inputs[0].value || "Team",
           current: Number(inputs[1].value) || 0,
+          currentProducts: Number(inputs[2].value) || 0,
+          highFitShare: Number(inputs[3].value) || 0,
           staffingLevels,
         };
       });
     };
 
     const parseMonthlyProducts = () =>
-      Array.from(monthlyProductsBody.rows).map((row) => Number(row.querySelector("input").value) || 0);
+      Array.from(monthlyProductsBody.querySelectorAll("input")).map((input) => Number(input.value) || 0);
 
-    const parseTrainingCurve = () =>
-      Array.from(trainingTable.querySelectorAll("tbody input")).map((input) => (Number(input.value) || 0) / 100);
+    const parseTrainingCurve = () => {
+      const rows = Array.from(trainingTable.tBodies[0].rows);
+      const parseRow = (row) =>
+        Array.from(row.querySelectorAll("input")).map((input) => (Number(input.value) || 0) / 100);
+      return {
+        lowFit: parseRow(rows[0]),
+        highFit: parseRow(rows[1]),
+      };
+    };
 
     const estimateStaffing = (productCount, productLevels, staffingLevels) => {
       if (productCount <= 0 || productLevels.length === 0) {
@@ -575,8 +636,12 @@
             const hires = team.hiresMonthly[hireMonth] || 0;
             totalHeadcount += hires;
             const trainingIndex = monthIndex - hireMonth;
-            const trainingRate = trainingCurve[trainingIndex] ?? 1;
-            effectiveCapacity += hires * trainingRate;
+            const highFitShare = Math.min(Math.max(team.highFitShare, 0), 100) / 100;
+            const highFitHires = hires * highFitShare;
+            const lowFitHires = hires - highFitHires;
+            const highFitRate = trainingCurve.highFit[trainingIndex] ?? 1;
+            const lowFitRate = trainingCurve.lowFit[trainingIndex] ?? 1;
+            effectiveCapacity += highFitHires * highFitRate + lowFitHires * lowFitRate;
           }
 
           totalMonthlyHeadcount.push(totalHeadcount);
@@ -606,39 +671,32 @@
       const peak = monthlyTotals.length ? Math.max(...monthlyTotals) : 0;
       const endValue = monthlyTotals[monthCount - 1] || 0;
 
-      totalHires.textContent = `${formatNumber(totalHiresValue, 1)} hires`;
-      peakHeadcount.textContent = `${formatNumber(peak, 1)} people`;
-      yearEnd.textContent = `${formatNumber(endValue, 1)} people`;
-    };
-
-    const updateMonthlyOutputs = (monthlyProducts) => {
-      Array.from(monthlyProductsBody.rows).forEach((row, index) => {
-        const outputCell = row.querySelector(".monthly-output");
-        outputCell.textContent = formatNumber(monthlyProducts[index] / 3, 2);
-      });
+      totalHires.textContent = `${formatNumber(totalHiresValue)} hires`;
+      peakHeadcount.textContent = `${formatNumber(peak)} people`;
+      yearEnd.textContent = `${formatNumber(endValue)} people`;
     };
 
     const updateQuarterBalance = (monthlyProducts) => {
       const average = monthlyProducts.length
         ? monthlyProducts.reduce((sum, value) => sum + value, 0) / monthlyProducts.length
         : 0;
-      quarterBalance.textContent = `Average products/quarter: ${formatNumber(average, 1)}`;
+      quarterBalance.textContent = `Average products/quarter: ${formatNumber(average)}`;
       quarterBalance.className = "badge";
     };
 
-    const getHeatClass = (value, threshold) => {
-      if (value < threshold) return "heat-low";
-      if (value < threshold + 0.1) return "heat-mid";
+    const getHeatClass = (value, redThreshold, orangeThreshold) => {
+      if (value < redThreshold) return "heat-low";
+      if (value < orangeThreshold) return "heat-mid";
       return "heat-high";
     };
 
-    const renderProficiencyTable = (teams, threshold) => {
+    const renderProficiencyTable = (teams, redThreshold, orangeThreshold) => {
       const header = `
         <table>
           <thead>
             <tr>
               <th>Team</th>
-              ${monthLabels.map((label) => `<th>${label}</th>`).join("")}
+              ${monthLabels.map((label) => `<th class="vertical-header"><span>${label}</span></th>`).join("")}
             </tr>
           </thead>
           <tbody>
@@ -646,8 +704,8 @@
 
       const bodyRows = teams.map((team) => {
         const cells = team.proficiencyMonthly.map((value) => {
-          const className = getHeatClass(value, threshold);
-          return `<td class="${className}">${formatNumber(value * 100, 1)}%</td>`;
+          const className = getHeatClass(value, redThreshold, orangeThreshold);
+          return `<td class="${className}">${formatNumber(value * 100)}%</td>`;
         });
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
@@ -708,7 +766,6 @@
       const teams = parseTeams();
       const productLevels = getProductLevels();
       const monthlyProducts = parseMonthlyProducts();
-      updateMonthlyOutputs(monthlyProducts);
       updateQuarterBalance(monthlyProducts);
 
       const staffedTeams = computeMonthlyStaffing(teams, productLevels, monthlyProducts);
@@ -717,27 +774,38 @@
       const trainingCurve = parseTrainingCurve();
       const proficiencyTeams = computeProficiencyTimeline(staffedTeams, trainingCurve);
 
-      const threshold = (Number(thresholdInput.value) || 0) / 100;
-      renderProficiencyTable(proficiencyTeams, threshold);
+      const redThreshold = (Number(thresholdRedInput.value) || 0) / 100;
+      const orangeThreshold = (Number(thresholdOrangeInput.value) || 0) / 100;
+      const sortedRed = Math.min(redThreshold, orangeThreshold);
+      const sortedOrange = Math.max(redThreshold, orangeThreshold);
+      renderProficiencyTable(proficiencyTeams, sortedRed, sortedOrange);
       renderChart(proficiencyTeams);
       updateViewToggle();
     };
 
     const bindInputs = () => {
       document.querySelectorAll("input, select").forEach((input) => {
-        input.addEventListener("input", recompute);
+        if (!input.dataset.bound) {
+          input.addEventListener("input", recompute);
+          input.dataset.bound = "true";
+        }
       });
-      viewToggle.addEventListener("change", updateViewToggle);
+      if (!viewToggle.dataset.bound) {
+        viewToggle.addEventListener("change", updateViewToggle);
+        viewToggle.dataset.bound = "true";
+      }
     };
 
     const createTeamRow = (levelCount) => {
       const row = document.createElement("tr");
       const staffingCells = Array.from({ length: levelCount })
-        .map(() => `<td><input type="number" min="0" step="0.1" value="0" /></td>`)
+        .map(() => `<td><input type="number" min="0" step="1" value="0" /></td>`)
         .join("");
       row.innerHTML = `
         <td><input type="text" value="" /></td>
         <td><input type="number" min="0" value="0" /></td>
+        <td><input type="number" min="0" step="1" value="0" /></td>
+        <td><input type="number" min="0" max="100" step="1" value="50" /></td>
         ${staffingCells}
       `;
       return row;
@@ -799,6 +867,8 @@
       const header = [
         "Team",
         "Current Staff",
+        "Current Products/Quarter",
+        "High-Fit Share (%)",
         ...productLevels.map((level) => `Staff needed @ ${level} products/qtr`),
       ];
       const rows = [header];
@@ -827,8 +897,15 @@
           return;
         }
         const header = rows[0];
+        const requiredLevels = Math.max(0, header.length - 4);
+        const currentLevels = getProductLevels().length;
+        if (requiredLevels > currentLevels) {
+          for (let i = currentLevels; i < requiredLevels; i += 1) {
+            addProductLevelColumn(0);
+          }
+        }
         const productLevelInputs = Array.from(document.querySelectorAll(".product-level-input"));
-        header.slice(2).forEach((cell, index) => {
+        header.slice(4).forEach((cell, index) => {
           const match = cell.match(/([0-9]+(?:\.[0-9]+)?)/);
           if (match && productLevelInputs[index]) {
             productLevelInputs[index].value = match[1];
@@ -840,7 +917,7 @@
         dataRows.forEach((dataRow, rowIndex) => {
           const row = teamTable.tBodies[0].rows[rowIndex];
           const inputs = row.querySelectorAll("input");
-          const values = dataRow.slice(0, 2 + levelCount);
+          const values = dataRow.slice(0, 4 + levelCount);
           values.forEach((value, index) => {
             if (inputs[index]) {
               inputs[index].value = value;
@@ -865,12 +942,80 @@
       });
     };
 
+    const addProductLevelColumn = (levelValue = 0) => {
+      const headerRow = teamTable.tHead.rows[0];
+      const th = document.createElement("th");
+      th.innerHTML = `
+        Staffing for
+        <div class="subtle">Products / Quarter</div>
+        <input class="product-level-input" type="number" min="0" step="1" value="${levelValue}" />
+      `;
+      headerRow.appendChild(th);
+      Array.from(teamTable.tBodies[0].rows).forEach((row) => {
+        const cell = document.createElement("td");
+        cell.innerHTML = `<input type="number" min="0" step="1" value="0" />`;
+        row.appendChild(cell);
+      });
+      bindInputs();
+      recompute();
+    };
+
+    const getTeamInputMatrix = () =>
+      Array.from(teamTable.tBodies[0].rows).map((row) => Array.from(row.querySelectorAll("input")));
+
+    const handleTeamTablePaste = (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) {
+        return;
+      }
+      const clipboardText = event.clipboardData?.getData("text");
+      if (!clipboardText || !clipboardText.includes("\t")) {
+        return;
+      }
+      event.preventDefault();
+      const rows = clipboardText
+        .split(/\r?\n/)
+        .filter((row) => row.length)
+        .map((row) => row.split("\t"));
+      const matrix = getTeamInputMatrix();
+      let startRow = -1;
+      let startCol = -1;
+      matrix.forEach((rowInputs, rowIndex) => {
+        rowInputs.forEach((input, colIndex) => {
+          if (input === target) {
+            startRow = rowIndex;
+            startCol = colIndex;
+          }
+        });
+      });
+      if (startRow === -1 || startCol === -1) {
+        return;
+      }
+      rows.forEach((rowValues, rowOffset) => {
+        const rowInputs = matrix[startRow + rowOffset];
+        if (!rowInputs) {
+          return;
+        }
+        rowValues.forEach((value, colOffset) => {
+          const input = rowInputs[startCol + colOffset];
+          if (input) {
+            input.value = value.trim();
+          }
+        });
+      });
+      recompute();
+    };
+
     exportCsvButton.addEventListener("click", exportCsv);
     importCsvButton.addEventListener("click", () => csvFileInput.click());
     csvFileInput.addEventListener("change", (event) => {
       importCsv(event.target.files[0]);
       csvFileInput.value = "";
     });
+    addLevelButton.addEventListener("click", () => {
+      addProductLevelColumn(Number(addLevelValue.value) || 0);
+    });
+    teamTable.addEventListener("paste", handleTeamTablePaste);
 
     buildMonthlyProductsTable();
     bindSectionToggles();
