@@ -99,7 +99,7 @@
       width: 100%;
       border: 1px solid #d1d5db;
       border-radius: 6px;
-      padding: 6px 8px;
+      padding: 4px 6px;
       font-size: 0.9rem;
       box-sizing: border-box;
       text-align: center;
@@ -267,6 +267,20 @@
     .proficiency-table th.vertical-header {
       width: 36px;
     }
+
+    .proficiency-table th,
+    .proficiency-table td {
+      font-size: 0.7rem;
+      padding: 3px;
+    }
+
+    @media (max-width: 900px) {
+      .proficiency-table th,
+      .proficiency-table td {
+        font-size: 0.65rem;
+        padding: 2px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -293,12 +307,12 @@
         <thead>
           <tr>
             <th>Team</th>
+            <th>Internal hiring (%)</th>
             <th>
               Current staff for
               <div class="subtle">Products / Quarter</div>
               <input class="current-product-input" type="number" min="0" step="1" value="4" />
             </th>
-            <th>High-Fit Share (%)</th>
             <th>
               Staffing for
               <div class="subtle">Products / Quarter</div>
@@ -324,8 +338,8 @@
         <tbody>
           <tr>
             <td><input type="text" value="Core Platform" /></td>
-            <td><input type="number" min="0" value="18" /></td>
             <td><input type="number" min="0" max="100" step="1" value="60" /></td>
+            <td><input type="number" min="0" value="18" /></td>
             <td><input type="number" min="0" step="1" value="22" /></td>
             <td><input type="number" min="0" step="1" value="28" /></td>
             <td><input type="number" min="0" step="1" value="36" /></td>
@@ -333,8 +347,8 @@
           </tr>
           <tr>
             <td><input type="text" value="Data Systems" /></td>
-            <td><input type="number" min="0" value="12" /></td>
             <td><input type="number" min="0" max="100" step="1" value="55" /></td>
+            <td><input type="number" min="0" value="12" /></td>
             <td><input type="number" min="0" step="1" value="15" /></td>
             <td><input type="number" min="0" step="1" value="19" /></td>
             <td><input type="number" min="0" step="1" value="24" /></td>
@@ -342,8 +356,8 @@
           </tr>
           <tr>
             <td><input type="text" value="Client Success" /></td>
-            <td><input type="number" min="0" value="15" /></td>
             <td><input type="number" min="0" max="100" step="1" value="50" /></td>
+            <td><input type="number" min="0" value="15" /></td>
             <td><input type="number" min="0" step="1" value="18" /></td>
             <td><input type="number" min="0" step="1" value="23" /></td>
             <td><input type="number" min="0" step="1" value="29" /></td>
@@ -355,6 +369,8 @@
         <button type="button" id="export-csv">Export CSV</button>
         <button type="button" id="import-csv">Import CSV</button>
         <input type="file" id="csv-file" accept=".csv" />
+        <button type="button" id="add-team">Add row</button>
+        <button type="button" id="remove-team">Remove row</button>
         <button type="button" id="add-level">Add column</button>
         <button type="button" id="remove-level">Remove column</button>
       </div>
@@ -529,6 +545,8 @@
     const exportCsvButton = document.getElementById("export-csv");
     const importCsvButton = document.getElementById("import-csv");
     const csvFileInput = document.getElementById("csv-file");
+    const addTeamButton = document.getElementById("add-team");
+    const removeTeamButton = document.getElementById("remove-team");
     const addLevelButton = document.getElementById("add-level");
     const removeLevelButton = document.getElementById("remove-level");
     const currentProductInput = document.querySelector(".current-product-input");
@@ -581,8 +599,8 @@
           .map((input) => Number(input.value) || 0);
         return {
           name: inputs[0].value || "Team",
-          current: Number(inputs[1].value) || 0,
-          highFitShare: Number(inputs[2].value) || 0,
+          highFitShare: Number(inputs[1].value) || 0,
+          current: Number(inputs[2].value) || 0,
           staffingLevels,
         };
       });
@@ -831,8 +849,8 @@
         .join("");
       row.innerHTML = `
         <td><input type="text" value="" /></td>
-        <td><input type="number" min="0" value="0" /></td>
         <td><input type="number" min="0" max="100" step="1" value="50" /></td>
+        <td><input type="number" min="0" value="0" /></td>
         ${staffingCells}
       `;
       return row;
@@ -847,6 +865,23 @@
       while (body.rows.length > count) {
         body.deleteRow(body.rows.length - 1);
       }
+    };
+
+    const addTeamRow = () => {
+      const body = teamTable.tBodies[0];
+      const levelCount = getProductLevels().length;
+      body.appendChild(createTeamRow(levelCount));
+      bindInputs();
+      recompute();
+    };
+
+    const removeTeamRow = () => {
+      const body = teamTable.tBodies[0];
+      if (body.rows.length <= 1) {
+        return;
+      }
+      body.deleteRow(body.rows.length - 1);
+      recompute();
     };
 
     const csvEscape = (value) => {
@@ -894,8 +929,8 @@
       const currentProductLevel = Number(currentProductInput?.value) || 0;
       const header = [
         "Team",
+        "Internal hiring (%)",
         `Current staff @ ${currentProductLevel} products/qtr`,
-        "High-Fit Share (%)",
         ...productLevels.map((level) => `Staff needed @ ${level} products/qtr`),
       ];
       const rows = [header];
@@ -1061,6 +1096,8 @@
       addProductLevelColumn(0);
     });
     removeLevelButton.addEventListener("click", removeProductLevelColumn);
+    addTeamButton.addEventListener("click", addTeamRow);
+    removeTeamButton.addEventListener("click", removeTeamRow);
     teamTable.addEventListener("paste", handleTeamTablePaste);
 
     buildMonthlyProductsTable();
