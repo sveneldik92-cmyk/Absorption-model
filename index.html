@@ -339,9 +339,16 @@
     #step-2 .compact-table input[type="number"],
     #step-3 .compact-table input[type="number"] {
       min-width: 0;
-      width: 25%;
       height: 24px;
       margin: 0 auto;
+    }
+
+    #step-2 .compact-table input[type="number"] {
+      width: 12.5%;
+    }
+
+    #step-3 .compact-table input[type="number"] {
+      width: 37.5%;
     }
 
     #step-2 input[type="number"],
@@ -354,17 +361,17 @@
 
     #step-2 .compact-table th,
     #step-2 .compact-table td {
-      min-width: 14px;
+      min-width: 7px;
     }
 
     #step-2 .compact-table th:first-child,
     #step-2 .compact-table td:first-child {
-      min-width: 28px;
+      min-width: 14px;
     }
 
     #step-4 .compact-table th,
     #step-4 .compact-table td {
-      min-width: 21px;
+      min-width: 15px;
     }
 
     #step-4 .compact-table th:first-child,
@@ -375,12 +382,12 @@
     }
 
     #step-2 input[type="number"] {
-      width: 4.2%;
+      width: 2.1%;
     }
 
     #step-4 input[type="number"],
     #step-4 select {
-      width: 25%;
+      width: 75%;
     }
 
     #step-2 .compact-table thead th,
@@ -468,7 +475,7 @@
         <tbody>
           <tr>
             <td><input type="text" value="Core Platform" /></td>
-            <td><input type="number" min="0" max="100" step="1" value="60" /></td>
+            <td><input type="number" min="0" max="100" step="1" value="0" /></td>
             <td><input type="number" min="0" value="18" /></td>
             <td><input type="number" min="0" step="1" value="22" /></td>
             <td><input type="number" min="0" step="1" value="28" /></td>
@@ -480,7 +487,7 @@
           </tr>
           <tr>
             <td><input type="text" value="Data Systems" /></td>
-            <td><input type="number" min="0" max="100" step="1" value="55" /></td>
+            <td><input type="number" min="0" max="100" step="1" value="0" /></td>
             <td><input type="number" min="0" value="12" /></td>
             <td><input type="number" min="0" step="1" value="15" /></td>
             <td><input type="number" min="0" step="1" value="19" /></td>
@@ -492,7 +499,7 @@
           </tr>
           <tr>
             <td><input type="text" value="Client Success" /></td>
-            <td><input type="number" min="0" max="100" step="1" value="50" /></td>
+            <td><input type="number" min="0" max="100" step="1" value="0" /></td>
             <td><input type="number" min="0" value="15" /></td>
             <td><input type="number" min="0" step="1" value="18" /></td>
             <td><input type="number" min="0" step="1" value="23" /></td>
@@ -936,7 +943,7 @@
           },
           scales: {
             y: {
-              min: 0,
+              min: 50,
               max: 100,
               title: {
                 display: true,
@@ -995,7 +1002,7 @@
         .join("");
       row.innerHTML = `
         <td><input type="text" value="" /></td>
-        <td><input type="number" min="0" max="100" step="1" value="50" /></td>
+        <td><input type="number" min="0" max="100" step="1" value="0" /></td>
         <td><input type="number" min="0" value="0" /></td>
         ${staffingCells}
       `;
