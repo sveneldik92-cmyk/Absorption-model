@@ -397,12 +397,14 @@
     }
 
     #step-2 #monthly-products-table {
-      width: 50%;
-      min-width: 50%;
+      width: 100%;
+      min-width: 100%;
     }
 
     #step-2 .table-scroll {
-      max-width: 50%;
+      max-width: calc(100% - 16px);
+      margin: 0 auto;
+      padding: 0 8px;
     }
 
     @media (max-width: 900px) {
@@ -727,10 +729,11 @@
       });
     };
 
-    const buildMonthlyProductsTable = () => {
+    const buildMonthlyProductsTable = (savedRates = []) => {
       const body = monthlyProductsBody;
       const head = document.querySelector("#monthly-products-table thead");
       const defaultRates = monthLabels.map((_, index) => (index < 12 ? 6 : index < 24 ? 7 : 8));
+      const rates = savedRates.length === monthLabels.length ? savedRates : defaultRates;
       head.innerHTML = `
         <tr>
           <th>Time period</th>
@@ -740,7 +743,7 @@
       body.innerHTML = `
         <tr>
           <td class="subtle">Rate</td>
-          ${defaultRates
+          ${rates
             .map(
               (value) =>
                 `<td><input class="monthly-product-input" type="number" min="0" step="1" value="${value}" /></td>`
@@ -1022,17 +1025,19 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     };
 
-    const loadState = () => {
+    const getStoredState = () => {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) {
-        return;
+        return null;
       }
-      let stored;
       try {
-        stored = JSON.parse(raw);
+        return JSON.parse(raw);
       } catch (error) {
-        return;
+        return null;
       }
+    };
+
+    const loadState = (stored = getStoredState()) => {
       if (!stored) {
         return;
       }
@@ -1382,10 +1387,11 @@
     removeTeamButton.addEventListener("click", removeTeamRow);
     teamTable.addEventListener("paste", handleTeamTablePaste);
 
-    buildMonthlyProductsTable();
+    const storedState = getStoredState();
+    buildMonthlyProductsTable(storedState?.monthlyProducts);
     ensureTeamRowCount(13);
     bindSectionToggles();
-    loadState();
+    loadState(storedState);
     bindInputs();
     recompute();
   </script>
