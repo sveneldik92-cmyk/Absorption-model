@@ -195,6 +195,42 @@
       background: #f8fafc;
     }
 
+    .table-card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .table-card + .table-card {
+      margin-top: 16px;
+    }
+
+    .table-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .table-card-header h3 {
+      margin: 0;
+    }
+
+    .table-toggle-button {
+      border: 1px solid #cbd5f5;
+      background: #eef2ff;
+      color: #3730a3;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .table-toggle-button:hover {
+      background: #e0e7ff;
+    }
+
     footer {
       margin-top: 40px;
       color: #94a3b8;
@@ -646,8 +682,8 @@
     </div>
     <div class="section-body">
       <p>
-        Review how much of each team is still new every month. Set a threshold to apply conditional formatting and toggle
-        the chart view.
+        Review headcount growth, training-adjusted newness, and monthly proficiency rates. Set a threshold to apply
+        conditional formatting and toggle the chart view.
       </p>
       <div class="meta">
         <label>
@@ -666,10 +702,45 @@
           </select>
         </label>
       </div>
-      <div class="card" style="margin-top: 16px;">
-        <div class="table-scroll" id="proficiency-table"></div>
-        <div id="proficiency-chart" class="hidden chart-wrapper">
-          <canvas id="chart-canvas" height="120"></canvas>
+      <div class="card table-card" style="margin-top: 16px;">
+        <div class="table-card-header">
+          <div>
+            <h3>Team size over time</h3>
+            <div class="note">Monthly total headcount by team.</div>
+          </div>
+          <button class="table-toggle-button" type="button" data-target="team-size-body">Collapse</button>
+        </div>
+        <div class="table-card-body" id="team-size-body">
+          <div class="table-scroll" id="team-size-table"></div>
+        </div>
+      </div>
+      <div class="card table-card">
+        <div class="table-card-header">
+          <div>
+            <h3>Training-adjusted new team members</h3>
+            <div class="note">
+              New hires multiplied by the inverse of their training curve (e.g., 20% proficiency = 80% new).
+            </div>
+          </div>
+          <button class="table-toggle-button" type="button" data-target="newness-body">Collapse</button>
+        </div>
+        <div class="table-card-body" id="newness-body">
+          <div class="table-scroll" id="newness-table"></div>
+        </div>
+      </div>
+      <div class="card table-card">
+        <div class="table-card-header">
+          <div>
+            <h3>Team proficiency over time</h3>
+            <div class="note">Percentage of each team that is fully productive each month.</div>
+          </div>
+          <button class="table-toggle-button" type="button" data-target="proficiency-body">Collapse</button>
+        </div>
+        <div class="table-card-body" id="proficiency-body">
+          <div class="table-scroll" id="proficiency-table"></div>
+          <div id="proficiency-chart" class="hidden chart-wrapper">
+            <canvas id="chart-canvas" height="120"></canvas>
+          </div>
         </div>
       </div>
     </div>
@@ -766,6 +837,8 @@
     const thresholdRedInput = document.getElementById("threshold-red");
     const thresholdOrangeInput = document.getElementById("threshold-orange");
     const viewToggle = document.getElementById("view-toggle");
+    const teamSizeTable = document.getElementById("team-size-table");
+    const newnessTable = document.getElementById("newness-table");
     const proficiencyTable = document.getElementById("proficiency-table");
     const proficiencyChart = document.getElementById("proficiency-chart");
     const chartCanvas = document.getElementById("chart-canvas");
@@ -906,6 +979,7 @@
       teams.map((team) => {
         const totalMonthlyHeadcount = [];
         const proficiencyMonthly = [];
+        const newnessMonthly = [];
 
         for (let monthIndex = 0; monthIndex < monthLabels.length; monthIndex += 1) {
           let totalHeadcount = team.current;
@@ -926,12 +1000,14 @@
           totalMonthlyHeadcount.push(totalHeadcount);
           const proficiency = totalHeadcount === 0 ? 1 : effectiveCapacity / totalHeadcount;
           proficiencyMonthly.push(proficiency);
+          newnessMonthly.push(Math.max(totalHeadcount - effectiveCapacity, 0));
         }
 
         return {
           ...team,
           totalMonthlyHeadcount,
           proficiencyMonthly,
+          newnessMonthly,
         };
       });
 
@@ -990,6 +1066,46 @@
       });
 
       proficiencyTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+    };
+
+    const renderHeadcountTable = (teams) => {
+      const header = `
+        <table class="proficiency-table compact-table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              ${monthLabels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      const bodyRows = teams.map((team) => {
+        const cells = team.totalMonthlyHeadcount.map((value) => `<td>${formatNumber(value, 1)}</td>`);
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
+      });
+
+      teamSizeTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+    };
+
+    const renderNewnessTable = (teams) => {
+      const header = `
+        <table class="proficiency-table compact-table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              ${monthLabels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      const bodyRows = teams.map((team) => {
+        const cells = team.newnessMonthly.map((value) => `<td>${formatNumber(value, 1)}</td>`);
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
+      });
+
+      newnessTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
     };
 
     const renderChart = (teams) => {
@@ -1061,6 +1177,8 @@
       const orangeThreshold = (Number(thresholdOrangeInput.value) || 0) / 100;
       const sortedRed = Math.min(redThreshold, orangeThreshold);
       const sortedOrange = Math.max(redThreshold, orangeThreshold);
+      renderHeadcountTable(proficiencyTeams);
+      renderNewnessTable(proficiencyTeams);
       renderProficiencyTable(proficiencyTeams, sortedRed, sortedOrange);
       renderChart(proficiencyTeams);
       updateViewToggle();
@@ -1362,6 +1480,25 @@
       });
     };
 
+    const bindTableToggles = () => {
+      document.querySelectorAll(".table-toggle-button").forEach((button) => {
+        if (button.dataset.bound) {
+          return;
+        }
+        const targetId = button.dataset.target;
+        const body = document.getElementById(targetId);
+        if (!body) {
+          return;
+        }
+        button.addEventListener("click", () => {
+          const isHidden = body.classList.toggle("hidden");
+          button.textContent = isHidden ? "Expand" : "Collapse";
+          button.setAttribute("aria-expanded", String(!isHidden));
+        });
+        button.dataset.bound = "true";
+      });
+    };
+
     const addProductLevelColumn = (levelValue = 0) => {
       const headerRow = teamTable.tHead.rows[0];
       const th = document.createElement("th");
@@ -1458,6 +1595,7 @@
     buildQuarterProductsTable(storedState?.quarterProducts);
     ensureTeamRowCount(13);
     bindSectionToggles();
+    bindTableToggles();
     loadState(storedState);
     bindInputs();
     recompute();
