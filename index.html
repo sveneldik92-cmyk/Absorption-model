@@ -396,6 +396,15 @@
       word-break: break-word;
     }
 
+    #step-2 #monthly-products-table {
+      width: 50%;
+      min-width: 50%;
+    }
+
+    #step-2 .table-scroll {
+      max-width: 50%;
+    }
+
     @media (max-width: 900px) {
       .proficiency-table th,
       .proficiency-table td {
@@ -705,6 +714,8 @@
     const currentProductInput = document.querySelector(".current-product-input");
 
     let chartInstance = null;
+    let isRestoring = false;
+    const STORAGE_KEY = "team-growth-proficiency-state";
 
     const formatNumber = (value, decimals = 0) => {
       if (!Number.isFinite(value)) {
@@ -895,7 +906,7 @@
           <thead>
             <tr>
               <th>Team</th>
-              ${monthLabels.map((label) => `<th>${label}</th>`).join("")}
+              ${monthLabels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
             </tr>
           </thead>
           <tbody>
@@ -962,6 +973,9 @@
     };
 
     const recompute = () => {
+      if (isRestoring) {
+        return;
+      }
       const teams = parseTeams();
       const productLevels = getProductLevels();
       const monthlyProducts = parseMonthlyProducts();
@@ -980,6 +994,121 @@
       renderProficiencyTable(proficiencyTeams, sortedRed, sortedOrange);
       renderChart(proficiencyTeams);
       updateViewToggle();
+      saveState();
+    };
+
+    const saveState = () => {
+      const state = {
+        currentProductLevel: currentProductInput?.value ?? "",
+        productLevels: getProductLevels(),
+        teamRows: Array.from(teamTable.tBodies[0].rows).map((row) =>
+          Array.from(row.querySelectorAll("input")).map((input) => input.value)
+        ),
+        monthlyProducts: parseMonthlyProducts(),
+        trainingCurve: {
+          lowFit: Array.from(trainingTable.tBodies[0].rows[0].querySelectorAll("input")).map(
+            (input) => input.value
+          ),
+          highFit: Array.from(trainingTable.tBodies[0].rows[1].querySelectorAll("input")).map(
+            (input) => input.value
+          ),
+        },
+        thresholds: {
+          red: thresholdRedInput.value,
+          orange: thresholdOrangeInput.value,
+        },
+        view: viewToggle.value,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    };
+
+    const loadState = () => {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      let stored;
+      try {
+        stored = JSON.parse(raw);
+      } catch (error) {
+        return;
+      }
+      if (!stored) {
+        return;
+      }
+      isRestoring = true;
+      if (typeof stored.currentProductLevel === "string" && currentProductInput) {
+        currentProductInput.value = stored.currentProductLevel;
+      }
+      if (Array.isArray(stored.productLevels)) {
+        const currentLevels = getProductLevels().length;
+        const targetLevels = stored.productLevels.length;
+        if (targetLevels > currentLevels) {
+          for (let i = currentLevels; i < targetLevels; i += 1) {
+            addProductLevelColumn(0);
+          }
+        } else if (targetLevels < currentLevels) {
+          for (let i = currentLevels; i > targetLevels; i -= 1) {
+            removeProductLevelColumn();
+          }
+        }
+        const productLevelInputs = Array.from(document.querySelectorAll(".product-level-input"));
+        stored.productLevels.forEach((value, index) => {
+          if (productLevelInputs[index] && value !== undefined) {
+            productLevelInputs[index].value = value;
+          }
+        });
+      }
+      if (Array.isArray(stored.teamRows)) {
+        ensureTeamRowCount(stored.teamRows.length);
+        const levelCount = getProductLevels().length;
+        stored.teamRows.forEach((rowValues, rowIndex) => {
+          const row = teamTable.tBodies[0].rows[rowIndex];
+          if (!row) {
+            return;
+          }
+          const inputs = row.querySelectorAll("input");
+          rowValues.slice(0, 3 + levelCount).forEach((value, index) => {
+            if (inputs[index] !== undefined && value !== undefined) {
+              inputs[index].value = value;
+            }
+          });
+        });
+      }
+      if (Array.isArray(stored.monthlyProducts)) {
+        const monthlyInputs = monthlyProductsBody.querySelectorAll("input");
+        stored.monthlyProducts.forEach((value, index) => {
+          if (monthlyInputs[index] && value !== undefined) {
+            monthlyInputs[index].value = value;
+          }
+        });
+      }
+      if (stored.trainingCurve) {
+        const lowFitInputs = trainingTable.tBodies[0].rows[0].querySelectorAll("input");
+        stored.trainingCurve.lowFit?.forEach((value, index) => {
+          if (lowFitInputs[index] && value !== undefined) {
+            lowFitInputs[index].value = value;
+          }
+        });
+        const highFitInputs = trainingTable.tBodies[0].rows[1].querySelectorAll("input");
+        stored.trainingCurve.highFit?.forEach((value, index) => {
+          if (highFitInputs[index] && value !== undefined) {
+            highFitInputs[index].value = value;
+          }
+        });
+      }
+      if (stored.thresholds) {
+        if (stored.thresholds.red !== undefined) {
+          thresholdRedInput.value = stored.thresholds.red;
+        }
+        if (stored.thresholds.orange !== undefined) {
+          thresholdOrangeInput.value = stored.thresholds.orange;
+        }
+      }
+      if (stored.view) {
+        viewToggle.value = stored.view;
+      }
+      isRestoring = false;
     };
 
     const bindInputs = () => {
@@ -1256,6 +1385,7 @@
     buildMonthlyProductsTable();
     ensureTeamRowCount(13);
     bindSectionToggles();
+    loadState();
     bindInputs();
     recompute();
   </script>
