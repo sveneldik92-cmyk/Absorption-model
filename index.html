@@ -675,6 +675,59 @@
     </div>
   </section>
 
+  <section class="section" id="step-5">
+    <div class="section-header">
+      <h2>5. How Table 4 Is Calculated (Deep Dive)</h2>
+      <button class="collapse-button" type="button" data-target="step-5">Collapse</button>
+    </div>
+    <div class="section-body">
+      <p>
+        Table 4 shows the percentage of each team that is fully productive in every month from Jan 2026 through
+        Dec 2028. The model builds that value in stages, using the inputs in Sections 1–3.
+      </p>
+      <ol>
+        <li>
+          <strong>Translate product demand into required headcount.</strong> Each quarter rate from Section 2 is applied
+          to every month in that quarter. For each team, the required headcount for that month is estimated by
+          interpolating between the “Products / Quarter” staffing rows in Section 1 (linear between levels, and bounded
+          at the minimum/maximum levels). If the required headcount is below the current staff, the current staff is used
+          instead (no negative hires).
+        </li>
+        <li>
+          <strong>Derive monthly hires.</strong> Starting from the current headcount, the model adds hires only when the
+          required headcount is higher than the prior month’s total. The monthly hires are therefore:
+          <div class="note">
+            <em>Monthly hires = max(required headcount − prior total headcount, 0)</em>
+          </div>
+        </li>
+        <li>
+          <strong>Split hires into high-fit and low-fit cohorts.</strong> The “Internal hiring (%)” field in Section 1
+          is treated as the share of hires who are high-fit. For each month:
+          <div class="note">
+            <em>High-fit hires = hires × internal hiring share</em><br />
+            <em>Low-fit hires = hires − high-fit hires</em>
+          </div>
+        </li>
+        <li>
+          <strong>Apply the training curve.</strong> Section 3 provides the productivity (%) for each cohort by month
+          since hire. For a given calendar month, each prior hire cohort contributes:
+          <div class="note">
+            <em>Effective capacity = high-fit hires × high-fit curve + low-fit hires × low-fit curve</em>
+          </div>
+          The “month since hire” index is the distance between the hire month and the current month.
+        </li>
+        <li>
+          <strong>Compute the proficiency percentage.</strong> For each month, the model sums total headcount (current
+          staff + all hires) and effective capacity (current staff + trained productivity of hires). The table value is:
+          <div class="note">
+            <em>Proficiency % = effective capacity ÷ total headcount</em>
+          </div>
+          The conditional formatting thresholds in Section 4 (red/orange) are then applied to these percentages.
+        </li>
+      </ol>
+    </div>
+  </section>
+
   <footer>Update inputs to explore different growth and training scenarios.</footer>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
