@@ -344,14 +344,16 @@
     }
 
     #step-2 .compact-table input[type="number"] {
-      width: 12.5%;
+      width: 100%;
+      height: 28px;
+      margin: 0;
+      padding: 4px 6px;
     }
 
     #step-3 .compact-table input[type="number"] {
       width: 37.5%;
     }
 
-    #step-2 input[type="number"],
     #step-3 input[type="number"],
     #step-4 input[type="number"],
     #step-4 select {
@@ -361,12 +363,12 @@
 
     #step-2 .compact-table th,
     #step-2 .compact-table td {
-      min-width: 7px;
+      min-width: 90px;
     }
 
     #step-2 .compact-table th:first-child,
     #step-2 .compact-table td:first-child {
-      min-width: 14px;
+      min-width: 160px;
     }
 
     #step-4 .compact-table th,
@@ -381,9 +383,6 @@
       word-break: break-word;
     }
 
-    #step-2 input[type="number"] {
-      width: 2.1%;
-    }
 
     #step-4 input[type="number"],
     #step-4 select {
@@ -551,12 +550,12 @@
 
   <section class="section" id="step-2">
     <div class="section-header">
-      <h2>2. Translate Quarterly Products to Monthly Timeline</h2>
+      <h2>2. Translate Quarterly Products to Quarterly Timeline</h2>
       <button class="collapse-button" type="button" data-target="step-2">Collapse</button>
     </div>
     <div class="section-body">
       <p>
-        Enter planned production in products per quarter (unit) for each month from 2026 through 2028. These values
+        Enter planned production in products per quarter (unit) for each quarter from 2026 through 2028. These values
         drive the staffing projections below.
       </p>
       <div class="table-scroll">
@@ -691,7 +690,18 @@
       return labels;
     };
 
+    const generateQuarterLabels = (startYear, endYear) => {
+      const labels = [];
+      for (let year = startYear; year <= endYear; year += 1) {
+        for (let quarter = 1; quarter <= 4; quarter += 1) {
+          labels.push(`Q${quarter} ${year}`);
+        }
+      }
+      return labels;
+    };
+
     const monthLabels = generateMonthLabels(2026, 2028);
+    const quarterLabels = generateQuarterLabels(2026, 2028);
 
     const teamTable = document.getElementById("team-table");
     const trainingTable = document.getElementById("training-table");
@@ -729,15 +739,15 @@
       });
     };
 
-    const buildMonthlyProductsTable = (savedRates = []) => {
+    const buildQuarterProductsTable = (savedRates = []) => {
       const body = monthlyProductsBody;
       const head = document.querySelector("#monthly-products-table thead");
-      const defaultRates = monthLabels.map((_, index) => (index < 12 ? 6 : index < 24 ? 7 : 8));
-      const rates = savedRates.length === monthLabels.length ? savedRates : defaultRates;
+      const defaultRates = quarterLabels.map((_, index) => (index < 4 ? 6 : index < 8 ? 7 : 8));
+      const rates = savedRates.length === quarterLabels.length ? savedRates : defaultRates;
       head.innerHTML = `
         <tr>
           <th>Time period</th>
-          ${monthLabels.map((label) => `<th>${label}</th>`).join("")}
+          ${quarterLabels.map((label) => `<th>${label}</th>`).join("")}
         </tr>
       `;
       body.innerHTML = `
@@ -773,8 +783,11 @@
       });
     };
 
-    const parseMonthlyProducts = () =>
+    const parseQuarterProducts = () =>
       Array.from(monthlyProductsBody.querySelectorAll("input")).map((input) => Number(input.value) || 0);
+
+    const expandQuarterRatesToMonthly = (quarterRates) =>
+      quarterRates.flatMap((rate) => [rate, rate, rate]);
 
     const parseTrainingCurve = () => {
       const rows = Array.from(trainingTable.tBodies[0].rows);
@@ -889,9 +902,9 @@
       yearEnd.textContent = `${formatNumber(endValue)} people`;
     };
 
-    const updateQuarterBalance = (monthlyProducts) => {
-      const average = monthlyProducts.length
-        ? monthlyProducts.reduce((sum, value) => sum + value, 0) / monthlyProducts.length
+    const updateQuarterBalance = (quarterProducts) => {
+      const average = quarterProducts.length
+        ? quarterProducts.reduce((sum, value) => sum + value, 0) / quarterProducts.length
         : 0;
       quarterBalance.textContent = `Average products/quarter: ${formatNumber(average)}`;
       quarterBalance.className = "badge";
@@ -981,8 +994,9 @@
       }
       const teams = parseTeams();
       const productLevels = getProductLevels();
-      const monthlyProducts = parseMonthlyProducts();
-      updateQuarterBalance(monthlyProducts);
+      const quarterProducts = parseQuarterProducts();
+      updateQuarterBalance(quarterProducts);
+      const monthlyProducts = expandQuarterRatesToMonthly(quarterProducts);
 
       const staffedTeams = computeMonthlyStaffing(teams, productLevels, monthlyProducts);
       updateStaffingSummary(staffedTeams);
@@ -1007,7 +1021,7 @@
         teamRows: Array.from(teamTable.tBodies[0].rows).map((row) =>
           Array.from(row.querySelectorAll("input")).map((input) => input.value)
         ),
-        monthlyProducts: parseMonthlyProducts(),
+        quarterProducts: parseQuarterProducts(),
         trainingCurve: {
           lowFit: Array.from(trainingTable.tBodies[0].rows[0].querySelectorAll("input")).map(
             (input) => input.value
@@ -1080,9 +1094,9 @@
           });
         });
       }
-      if (Array.isArray(stored.monthlyProducts)) {
+      if (Array.isArray(stored.quarterProducts)) {
         const monthlyInputs = monthlyProductsBody.querySelectorAll("input");
-        stored.monthlyProducts.forEach((value, index) => {
+        stored.quarterProducts.forEach((value, index) => {
           if (monthlyInputs[index] && value !== undefined) {
             monthlyInputs[index].value = value;
           }
@@ -1388,7 +1402,7 @@
     teamTable.addEventListener("paste", handleTeamTablePaste);
 
     const storedState = getStoredState();
-    buildMonthlyProductsTable(storedState?.monthlyProducts);
+    buildQuarterProductsTable(storedState?.quarterProducts);
     ensureTeamRowCount(13);
     bindSectionToggles();
     loadState(storedState);
