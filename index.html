@@ -339,8 +339,9 @@
     #step-2 .compact-table input[type="number"],
     #step-3 .compact-table input[type="number"] {
       min-width: 0;
-      width: 100%;
+      width: 25%;
       height: 24px;
+      margin: 0 auto;
     }
 
     #step-2 input[type="number"],
@@ -368,11 +369,13 @@
 
     #step-4 .compact-table th:first-child,
     #step-4 .compact-table td:first-child {
-      min-width: 40px;
+      min-width: 20px;
+      white-space: normal;
+      word-break: break-word;
     }
 
     #step-2 input[type="number"] {
-      width: 16.7%;
+      width: 4.2%;
     }
 
     #step-4 input[type="number"],
@@ -445,6 +448,21 @@
               <div class="subtle">Products / Quarter</div>
               <input class="product-level-input" type="number" min="0" step="1" value="8" />
             </th>
+            <th>
+              Staffing for
+              <div class="subtle">Products / Quarter</div>
+              <input class="product-level-input" type="number" min="0" step="1" value="10" />
+            </th>
+            <th>
+              Staffing for
+              <div class="subtle">Products / Quarter</div>
+              <input class="product-level-input" type="number" min="0" step="1" value="12" />
+            </th>
+            <th>
+              Staffing for
+              <div class="subtle">Products / Quarter</div>
+              <input class="product-level-input" type="number" min="0" step="1" value="14" />
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -456,6 +474,9 @@
             <td><input type="number" min="0" step="1" value="28" /></td>
             <td><input type="number" min="0" step="1" value="36" /></td>
             <td><input type="number" min="0" step="1" value="44" /></td>
+            <td><input type="number" min="0" step="1" value="52" /></td>
+            <td><input type="number" min="0" step="1" value="60" /></td>
+            <td><input type="number" min="0" step="1" value="68" /></td>
           </tr>
           <tr>
             <td><input type="text" value="Data Systems" /></td>
@@ -465,6 +486,9 @@
             <td><input type="number" min="0" step="1" value="19" /></td>
             <td><input type="number" min="0" step="1" value="24" /></td>
             <td><input type="number" min="0" step="1" value="30" /></td>
+            <td><input type="number" min="0" step="1" value="36" /></td>
+            <td><input type="number" min="0" step="1" value="42" /></td>
+            <td><input type="number" min="0" step="1" value="48" /></td>
           </tr>
           <tr>
             <td><input type="text" value="Client Success" /></td>
@@ -474,6 +498,9 @@
             <td><input type="number" min="0" step="1" value="23" /></td>
             <td><input type="number" min="0" step="1" value="29" /></td>
             <td><input type="number" min="0" step="1" value="36" /></td>
+            <td><input type="number" min="0" step="1" value="43" /></td>
+            <td><input type="number" min="0" step="1" value="50" /></td>
+            <td><input type="number" min="0" step="1" value="57" /></td>
           </tr>
         </tbody>
       </table>
@@ -553,6 +580,7 @@
             <th>10</th>
             <th>11</th>
             <th>12</th>
+            <th>13</th>
           </tr>
         </thead>
         <tbody>
@@ -570,6 +598,7 @@
             <td><input type="number" min="0" max="100" value="93" /></td>
             <td><input type="number" min="0" max="100" value="97" /></td>
             <td><input type="number" min="0" max="100" value="100" /></td>
+            <td><input type="number" min="0" max="100" value="100" /></td>
           </tr>
           <tr>
             <td>High-Fit Proficiency (%)</td>
@@ -584,6 +613,7 @@
             <td><input type="number" min="0" max="100" value="95" /></td>
             <td><input type="number" min="0" max="100" value="97" /></td>
             <td><input type="number" min="0" max="100" value="99" /></td>
+            <td><input type="number" min="0" max="100" value="100" /></td>
             <td><input type="number" min="0" max="100" value="100" /></td>
           </tr>
         </tbody>
@@ -1217,6 +1247,7 @@
     teamTable.addEventListener("paste", handleTeamTablePaste);
 
     buildMonthlyProductsTable();
+    ensureTeamRowCount(13);
     bindSectionToggles();
     bindInputs();
     recompute();
