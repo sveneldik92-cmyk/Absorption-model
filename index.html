@@ -695,6 +695,14 @@
           Orange threshold (%)
           <input type="number" id="threshold-orange" min="0" max="100" value="90" />
         </label>
+        <label>
+          New-hire red threshold (%)
+          <input type="number" id="new-hire-threshold-red" min="0" max="100" value="25" />
+        </label>
+        <label>
+          New-hire orange threshold (%)
+          <input type="number" id="new-hire-threshold-orange" min="0" max="100" value="20" />
+        </label>
         <label class="toggle">
           View
           <select id="view-toggle">
@@ -747,7 +755,7 @@
       <div class="card table-card">
         <div class="table-card-header">
           <div>
-            <h3>Budget change vs previous month</h3>
+            <h3>Percentage of new hires vs previous month</h3>
             <div class="note">
               Untrained population ÷ total population, showing the share of each team still in training.
             </div>
@@ -851,6 +859,8 @@
     const quarterBalance = document.getElementById("quarter-balance");
     const thresholdRedInput = document.getElementById("threshold-red");
     const thresholdOrangeInput = document.getElementById("threshold-orange");
+    const newHireThresholdRedInput = document.getElementById("new-hire-threshold-red");
+    const newHireThresholdOrangeInput = document.getElementById("new-hire-threshold-orange");
     const viewToggle = document.getElementById("view-toggle");
     const teamSizeTable = document.getElementById("team-size-table");
     const budgetChangeTable = document.getElementById("budget-change-table");
@@ -1070,6 +1080,12 @@
       return "heat-high";
     };
 
+    const getHeatClassHighIsBad = (value, redThreshold, orangeThreshold) => {
+      if (value >= redThreshold) return "heat-low";
+      if (value >= orangeThreshold) return "heat-mid";
+      return "heat-high";
+    };
+
     const renderProficiencyTable = (teams, redThreshold, orangeThreshold) => {
       const header = `
         <table class="proficiency-table compact-table">
@@ -1133,7 +1149,7 @@
       newnessTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
     };
 
-    const renderBudgetChangeTable = (teams) => {
+    const renderBudgetChangeTable = (teams, redThreshold, orangeThreshold) => {
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
@@ -1146,9 +1162,13 @@
       `;
 
       const bodyRows = teams.map((team) => {
-        const cells = team.budgetChangeMonthly.map((value) =>
-          Number.isFinite(value) ? `<td>${formatNumber(value * 100, 1)}%</td>` : "<td>-</td>"
-        );
+        const cells = team.budgetChangeMonthly.map((value) => {
+          if (!Number.isFinite(value)) {
+            return "<td>-</td>";
+          }
+          const className = getHeatClassHighIsBad(value, redThreshold, orangeThreshold);
+          return `<td class="${className}">${formatNumber(value * 100, 0)}%</td>`;
+        });
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
@@ -1224,8 +1244,13 @@
       const orangeThreshold = (Number(thresholdOrangeInput.value) || 0) / 100;
       const sortedRed = Math.min(redThreshold, orangeThreshold);
       const sortedOrange = Math.max(redThreshold, orangeThreshold);
+      const newHireRedThreshold = (Number(newHireThresholdRedInput.value) || 0) / 100;
+      const newHireOrangeThreshold = (Number(newHireThresholdOrangeInput.value) || 0) / 100;
+      const sortedNewHireRed = Math.max(newHireRedThreshold, newHireOrangeThreshold);
+      const sortedNewHireOrange = Math.min(newHireRedThreshold, newHireOrangeThreshold);
+
       renderHeadcountTable(proficiencyTeams);
-      renderBudgetChangeTable(proficiencyTeams);
+      renderBudgetChangeTable(proficiencyTeams, sortedNewHireRed, sortedNewHireOrange);
       renderNewnessTable(proficiencyTeams);
       renderProficiencyTable(proficiencyTeams, sortedRed, sortedOrange);
       renderChart(proficiencyTeams);
@@ -1252,6 +1277,8 @@
         thresholds: {
           red: thresholdRedInput.value,
           orange: thresholdOrangeInput.value,
+          newHireRed: newHireThresholdRedInput.value,
+          newHireOrange: newHireThresholdOrangeInput.value,
         },
         view: viewToggle.value,
       };
@@ -1341,6 +1368,12 @@
         }
         if (stored.thresholds.orange !== undefined) {
           thresholdOrangeInput.value = stored.thresholds.orange;
+        }
+        if (stored.thresholds.newHireRed !== undefined) {
+          newHireThresholdRedInput.value = stored.thresholds.newHireRed;
+        }
+        if (stored.thresholds.newHireOrange !== undefined) {
+          newHireThresholdOrangeInput.value = stored.thresholds.newHireOrange;
         }
       }
       if (stored.view) {
