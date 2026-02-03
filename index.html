@@ -710,6 +710,10 @@
             <option value="chart">Chart</option>
           </select>
         </label>
+        <label class="toggle">
+          Table columns
+          <button type="button" class="table-toggle-button" id="time-column-toggle">Show quarters</button>
+        </label>
       </div>
       <div class="card table-card" style="margin-top: 16px;">
         <div class="table-card-header">
@@ -862,6 +866,7 @@
     const newHireThresholdRedInput = document.getElementById("new-hire-threshold-red");
     const newHireThresholdOrangeInput = document.getElementById("new-hire-threshold-orange");
     const viewToggle = document.getElementById("view-toggle");
+    const timeColumnToggle = document.getElementById("time-column-toggle");
     const teamSizeTable = document.getElementById("team-size-table");
     const budgetChangeTable = document.getElementById("budget-change-table");
     const newnessTable = document.getElementById("newness-table");
@@ -879,6 +884,7 @@
 
     let chartInstance = null;
     let isRestoring = false;
+    let timeColumnView = "month";
     const STORAGE_KEY = "team-growth-proficiency-state";
 
     const formatNumber = (value, decimals = 0) => {
@@ -1086,20 +1092,40 @@
       return "heat-high";
     };
 
+    const aggregateQuarterValues = (values) => {
+      const results = [];
+      for (let i = 0; i < values.length; i += 3) {
+        const slice = values.slice(i, i + 3).filter((value) => Number.isFinite(value));
+        const average = slice.length
+          ? slice.reduce((sum, value) => sum + value, 0) / slice.length
+          : null;
+        results.push(average);
+      }
+      return results;
+    };
+
+    const getTimeLabels = () => (timeColumnView === "quarter" ? quarterLabels : monthLabels);
+    const getTimeSeries = (values) =>
+      timeColumnView === "quarter" ? aggregateQuarterValues(values) : values;
+
     const renderProficiencyTable = (teams, redThreshold, orangeThreshold) => {
+      const labels = getTimeLabels();
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${monthLabels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const cells = team.proficiencyMonthly.map((value) => {
+        const cells = getTimeSeries(team.proficiencyMonthly).map((value) => {
+          if (!Number.isFinite(value)) {
+            return "<td>-</td>";
+          }
           const className = getHeatClass(value, redThreshold, orangeThreshold);
           return `<td class="${className}">${formatNumber(value * 100)}%</td>`;
         });
@@ -1110,19 +1136,25 @@
     };
 
     const renderHeadcountTable = (teams) => {
+      const labels = getTimeLabels();
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${monthLabels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const cells = team.totalMonthlyHeadcount.map((value) => `<td>${formatNumber(value, 1)}</td>`);
+        const cells = getTimeSeries(team.totalMonthlyHeadcount).map((value) => {
+          if (!Number.isFinite(value)) {
+            return "<td>-</td>";
+          }
+          return `<td>${formatNumber(value, 1)}</td>`;
+        });
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
@@ -1130,19 +1162,25 @@
     };
 
     const renderNewnessTable = (teams) => {
+      const labels = getTimeLabels();
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${monthLabels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const cells = team.newnessMonthly.map((value) => `<td>${formatNumber(value, 1)}</td>`);
+        const cells = getTimeSeries(team.newnessMonthly).map((value) => {
+          if (!Number.isFinite(value)) {
+            return "<td>-</td>";
+          }
+          return `<td>${formatNumber(value, 1)}</td>`;
+        });
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
@@ -1150,19 +1188,20 @@
     };
 
     const renderBudgetChangeTable = (teams, redThreshold, orangeThreshold) => {
+      const labels = getTimeLabels();
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${monthLabels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const cells = team.budgetChangeMonthly.map((value) => {
+        const cells = getTimeSeries(team.budgetChangeMonthly).map((value) => {
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -1224,6 +1263,10 @@
       proficiencyChart.classList.toggle("hidden", !isChart);
     };
 
+    const updateTimeColumnToggle = () => {
+      timeColumnToggle.textContent = timeColumnView === "quarter" ? "Show months" : "Show quarters";
+    };
+
     const recompute = () => {
       if (isRestoring) {
         return;
@@ -1255,6 +1298,7 @@
       renderProficiencyTable(proficiencyTeams, sortedRed, sortedOrange);
       renderChart(proficiencyTeams);
       updateViewToggle();
+      updateTimeColumnToggle();
       saveState();
     };
 
@@ -1281,6 +1325,7 @@
           newHireOrange: newHireThresholdOrangeInput.value,
         },
         view: viewToggle.value,
+        timeColumnView,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     };
@@ -1378,6 +1423,9 @@
       }
       if (stored.view) {
         viewToggle.value = stored.view;
+      }
+      if (stored.timeColumnView) {
+        timeColumnView = stored.timeColumnView;
       }
       isRestoring = false;
     };
@@ -1671,6 +1719,10 @@
     addTeamButton.addEventListener("click", addTeamRow);
     removeTeamButton.addEventListener("click", removeTeamRow);
     teamTable.addEventListener("paste", handleTeamTablePaste);
+    timeColumnToggle.addEventListener("click", () => {
+      timeColumnView = timeColumnView === "quarter" ? "month" : "quarter";
+      recompute();
+    });
 
     const storedState = getStoredState();
     buildQuarterProductsTable(storedState?.quarterProducts);
