@@ -592,7 +592,8 @@
     <div class="section-body">
       <p>
         Enter planned production in products per quarter (unit) for each quarter from 2026 through 2028. These values
-        drive the staffing projections below and are limited to the product levels defined in section 1.
+        drive the staffing projections below. If a rate falls between the product levels in section 1, staffing is
+        linearly interpolated between the nearest levels.
       </p>
       <div class="table-scroll">
         <table id="monthly-products-table" class="compact-table">
@@ -602,7 +603,7 @@
       </div>
       <div class="meta">
         <span class="badge" id="quarter-balance"></span>
-        <span class="note">Quarterly rates are used directly for staffing projections.</span>
+        <span class="note">Quarterly rates can include decimals and use linear interpolation.</span>
       </div>
     </div>
   </section>
@@ -901,7 +902,7 @@
             .map(
               (value) => `
                 <td>
-                  <input class="monthly-product-input" type="number" min="0" step="1" value="${value}" />
+                  <input class="monthly-product-input" type="number" min="0" step="0.1" value="${value}" />
                 </td>
               `
             )
