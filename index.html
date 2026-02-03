@@ -379,8 +379,7 @@
       margin: 0 auto;
     }
 
-    #step-2 .compact-table input[type="number"],
-    #step-2 .compact-table select {
+    #step-2 .compact-table input[type="number"] {
       width: 100%;
       height: 28px;
       margin: 0;
@@ -718,20 +717,6 @@
       <div class="card table-card">
         <div class="table-card-header">
           <div>
-            <h3>Budget change vs previous month</h3>
-            <div class="note">
-              (New budget − old budget) ÷ old budget, showing month-over-month percentage change.
-            </div>
-          </div>
-          <button class="table-toggle-button" type="button" data-target="budget-change-body">Collapse</button>
-        </div>
-        <div class="table-card-body" id="budget-change-body">
-          <div class="table-scroll" id="budget-change-table"></div>
-        </div>
-      </div>
-      <div class="card table-card">
-        <div class="table-card-header">
-          <div>
             <h3>Training-adjusted new team members</h3>
             <div class="note">
               New hires multiplied by the inverse of their training curve (e.g., 20% proficiency = 80% new).
@@ -756,6 +741,20 @@
           <div id="proficiency-chart" class="hidden chart-wrapper">
             <canvas id="chart-canvas" height="120"></canvas>
           </div>
+        </div>
+      </div>
+      <div class="card table-card">
+        <div class="table-card-header">
+          <div>
+            <h3>Budget change vs previous month</h3>
+            <div class="note">
+              (New budget − old budget) ÷ old budget, showing month-over-month percentage change.
+            </div>
+          </div>
+          <button class="table-toggle-button" type="button" data-target="budget-change-body">Collapse</button>
+        </div>
+        <div class="table-card-body" id="budget-change-body">
+          <div class="table-scroll" id="budget-change-table"></div>
         </div>
       </div>
     </div>
@@ -884,37 +883,11 @@
     const getProductLevels = () =>
       Array.from(document.querySelectorAll(".product-level-input")).map((input) => Number(input.value) || 0);
 
-    const getRateOptionValues = () => {
-      const values = getProductLevels()
-        .map((level) => Number(level) || 0)
-        .filter((level) => level > 0);
-      const uniqueValues = Array.from(new Set(values)).sort((a, b) => a - b);
-      return uniqueValues.length ? uniqueValues : [0];
-    };
-
-    const pickClosestValue = (target, options) => {
-      if (!options.length) {
-        return 0;
-      }
-      return options.reduce((closest, option) => {
-        const currentDistance = Math.abs(option - target);
-        const closestDistance = Math.abs(closest - target);
-        if (currentDistance < closestDistance) {
-          return option;
-        }
-        if (currentDistance === closestDistance) {
-          return option < closest ? option : closest;
-        }
-        return closest;
-      }, options[0]);
-    };
-
     const buildQuarterProductsTable = (savedRates = []) => {
       const body = monthlyProductsBody;
       const head = document.querySelector("#monthly-products-table thead");
       const defaultRates = quarterLabels.map((_, index) => (index < 4 ? 6 : index < 8 ? 7 : 8));
       const rates = savedRates.length === quarterLabels.length ? savedRates : defaultRates;
-      const optionValues = getRateOptionValues();
       head.innerHTML = `
         <tr>
           <th>Time period</th>
@@ -925,42 +898,16 @@
         <tr>
           <td class="subtle">Rate</td>
           ${rates
-            .map((value) => {
-              const selectedValue = pickClosestValue(Number(value) || 0, optionValues);
-              return `
+            .map(
+              (value) => `
                 <td>
-                  <select class="monthly-product-input">
-                    ${optionValues
-                      .map(
-                        (optionValue) =>
-                          `<option value="${optionValue}"${
-                            optionValue === selectedValue ? " selected" : ""
-                          }>${optionValue}</option>`
-                      )
-                      .join("")}
-                  </select>
+                  <input class="monthly-product-input" type="number" min="0" step="1" value="${value}" />
                 </td>
-              `;
-            })
+              `
+            )
             .join("")}
         </tr>
       `;
-    };
-
-    const updateQuarterRateOptions = () => {
-      const optionValues = getRateOptionValues();
-      const selects = monthlyProductsBody.querySelectorAll("select");
-      selects.forEach((select) => {
-        const currentValue = Number(select.value) || 0;
-        const selectedValue = pickClosestValue(currentValue, optionValues);
-        select.innerHTML = optionValues
-          .map(
-            (optionValue) =>
-              `<option value="${optionValue}">${optionValue}</option>`
-          )
-          .join("");
-        select.value = String(selectedValue);
-      });
     };
 
     const parseTeams = () => {
@@ -981,7 +928,7 @@
     };
 
     const parseQuarterProducts = () =>
-      Array.from(monthlyProductsBody.querySelectorAll("select")).map((input) => Number(input.value) || 0);
+      Array.from(monthlyProductsBody.querySelectorAll("input")).map((input) => Number(input.value) || 0);
 
     const expandQuarterRatesToMonthly = (quarterRates) =>
       quarterRates.flatMap((rate) => [rate, rate, rate]);
@@ -1266,7 +1213,6 @@
       }
       const teams = parseTeams();
       const productLevels = getProductLevels();
-      updateQuarterRateOptions();
       const quarterProducts = parseQuarterProducts();
       updateQuarterBalance(quarterProducts);
       const monthlyProducts = expandQuarterRatesToMonthly(quarterProducts);
@@ -1371,7 +1317,7 @@
         });
       }
       if (Array.isArray(stored.quarterProducts)) {
-        const monthlyInputs = monthlyProductsBody.querySelectorAll("select");
+        const monthlyInputs = monthlyProductsBody.querySelectorAll("input");
         stored.quarterProducts.forEach((value, index) => {
           if (monthlyInputs[index] && value !== undefined) {
             monthlyInputs[index].value = value;
