@@ -718,6 +718,20 @@
       <div class="card table-card">
         <div class="table-card-header">
           <div>
+            <h3>Budget change vs previous month</h3>
+            <div class="note">
+              (New budget − old budget) ÷ old budget, showing month-over-month percentage change.
+            </div>
+          </div>
+          <button class="table-toggle-button" type="button" data-target="budget-change-body">Collapse</button>
+        </div>
+        <div class="table-card-body" id="budget-change-body">
+          <div class="table-scroll" id="budget-change-table"></div>
+        </div>
+      </div>
+      <div class="card table-card">
+        <div class="table-card-header">
+          <div>
             <h3>Training-adjusted new team members</h3>
             <div class="note">
               New hires multiplied by the inverse of their training curve (e.g., 20% proficiency = 80% new).
