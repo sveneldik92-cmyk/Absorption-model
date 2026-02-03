@@ -718,6 +718,20 @@
       <div class="card table-card">
         <div class="table-card-header">
           <div>
+            <h3>Budget change vs previous month</h3>
+            <div class="note">
+              (New budget − old budget) ÷ old budget, showing month-over-month percentage change.
+            </div>
+          </div>
+          <button class="table-toggle-button" type="button" data-target="budget-change-body">Collapse</button>
+        </div>
+        <div class="table-card-body" id="budget-change-body">
+          <div class="table-scroll" id="budget-change-table"></div>
+        </div>
+      </div>
+      <div class="card table-card">
+        <div class="table-card-header">
+          <div>
             <h3>Training-adjusted new team members</h3>
             <div class="note">
               New hires multiplied by the inverse of their training curve (e.g., 20% proficiency = 80% new).
@@ -839,6 +853,7 @@
     const thresholdOrangeInput = document.getElementById("threshold-orange");
     const viewToggle = document.getElementById("view-toggle");
     const teamSizeTable = document.getElementById("team-size-table");
+    const budgetChangeTable = document.getElementById("budget-change-table");
     const newnessTable = document.getElementById("newness-table");
     const proficiencyTable = document.getElementById("proficiency-table");
     const proficiencyChart = document.getElementById("proficiency-chart");
@@ -1064,6 +1079,16 @@
           totalMonthlyHeadcount,
           proficiencyMonthly,
           newnessMonthly,
+          budgetChangeMonthly: totalMonthlyHeadcount.map((value, index, allValues) => {
+            if (index === 0) {
+              return null;
+            }
+            const previous = allValues[index - 1] || 0;
+            if (previous === 0) {
+              return null;
+            }
+            return (value - previous) / previous;
+          }),
         };
       });
 
@@ -1164,6 +1189,28 @@
       newnessTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
     };
 
+    const renderBudgetChangeTable = (teams) => {
+      const header = `
+        <table class="proficiency-table compact-table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              ${monthLabels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      const bodyRows = teams.map((team) => {
+        const cells = team.budgetChangeMonthly.map((value) =>
+          Number.isFinite(value) ? `<td>${formatNumber(value * 100, 1)}%</td>` : "<td>-</td>"
+        );
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
+      });
+
+      budgetChangeTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+    };
+
     const renderChart = (teams) => {
       const datasets = teams.map((team, index) => {
         const colors = ["#2563eb", "#0f766e", "#d97706", "#9333ea", "#dc2626"];
@@ -1235,6 +1282,7 @@
       const sortedRed = Math.min(redThreshold, orangeThreshold);
       const sortedOrange = Math.max(redThreshold, orangeThreshold);
       renderHeadcountTable(proficiencyTeams);
+      renderBudgetChangeTable(proficiencyTeams);
       renderNewnessTable(proficiencyTeams);
       renderProficiencyTable(proficiencyTeams, sortedRed, sortedOrange);
       renderChart(proficiencyTeams);
