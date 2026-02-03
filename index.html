@@ -749,7 +749,7 @@
           <div>
             <h3>Budget change vs previous month</h3>
             <div class="note">
-              (New budget − old budget) ÷ old budget, showing month-over-month percentage change.
+              Untrained population ÷ total population, showing the share of each team still in training.
             </div>
           </div>
           <button class="table-toggle-button" type="button" data-target="budget-change-body">Collapse</button>
@@ -1027,15 +1027,11 @@
           totalMonthlyHeadcount,
           proficiencyMonthly,
           newnessMonthly,
-          budgetChangeMonthly: totalMonthlyHeadcount.map((value, index, allValues) => {
-            if (index === 0) {
+          budgetChangeMonthly: totalMonthlyHeadcount.map((value, index) => {
+            if (value === 0) {
               return null;
             }
-            const previous = allValues[index - 1] || 0;
-            if (previous === 0) {
-              return null;
-            }
-            return (value - previous) / previous;
+            return newnessMonthly[index] / value;
           }),
         };
       });
