@@ -185,7 +185,7 @@
     }
 
     .heat-high {
-      background: #dcfce7;
+      background: #dbeafe;
     }
 
     .chart-wrapper {
@@ -725,6 +725,9 @@
         </div>
         <div class="table-card-body" id="team-size-body">
           <div class="table-scroll" id="team-size-table"></div>
+          <div id="team-size-chart" class="hidden chart-wrapper">
+            <canvas id="team-size-canvas" height="120"></canvas>
+          </div>
         </div>
       </div>
       <div class="card table-card">
@@ -739,6 +742,9 @@
         </div>
         <div class="table-card-body" id="newness-body">
           <div class="table-scroll" id="newness-table"></div>
+          <div id="newness-chart" class="hidden chart-wrapper">
+            <canvas id="newness-canvas" height="120"></canvas>
+          </div>
         </div>
       </div>
       <div class="card table-card">
@@ -768,6 +774,9 @@
         </div>
         <div class="table-card-body" id="budget-change-body">
           <div class="table-scroll" id="budget-change-table"></div>
+          <div id="budget-change-chart" class="hidden chart-wrapper">
+            <canvas id="budget-change-canvas" height="120"></canvas>
+          </div>
         </div>
       </div>
     </div>
@@ -873,6 +882,12 @@
     const proficiencyTable = document.getElementById("proficiency-table");
     const proficiencyChart = document.getElementById("proficiency-chart");
     const chartCanvas = document.getElementById("chart-canvas");
+    const teamSizeChart = document.getElementById("team-size-chart");
+    const teamSizeCanvas = document.getElementById("team-size-canvas");
+    const newnessChart = document.getElementById("newness-chart");
+    const newnessCanvas = document.getElementById("newness-canvas");
+    const budgetChangeChart = document.getElementById("budget-change-chart");
+    const budgetChangeCanvas = document.getElementById("budget-change-canvas");
     const exportCsvButton = document.getElementById("export-csv");
     const importCsvButton = document.getElementById("import-csv");
     const csvFileInput = document.getElementById("csv-file");
@@ -882,7 +897,7 @@
     const removeLevelButton = document.getElementById("remove-level");
     const currentProductInput = document.querySelector(".current-product-input");
 
-    let chartInstance = null;
+    const chartInstances = new Map();
     let isRestoring = false;
     let timeColumnView = "month";
     const STORAGE_KEY = "team-growth-proficiency-state";
@@ -1104,12 +1119,23 @@
       return results;
     };
 
-    const getTimeLabels = () => (timeColumnView === "quarter" ? quarterLabels : monthLabels);
+    const getTimeLabels = (quarterRates) => {
+      if (timeColumnView !== "quarter") {
+        return monthLabels;
+      }
+      return quarterLabels.map((label, index) => {
+        const rate = Number(quarterRates?.[index]);
+        if (!Number.isFinite(rate)) {
+          return label;
+        }
+        return `${label} (${formatNumber(rate, 1)})`;
+      });
+    };
     const getTimeSeries = (values) =>
       timeColumnView === "quarter" ? aggregateQuarterValues(values) : values;
 
-    const renderProficiencyTable = (teams, redThreshold, orangeThreshold) => {
-      const labels = getTimeLabels();
+    const renderProficiencyTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
+      const labels = getTimeLabels(quarterRates);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
@@ -1135,8 +1161,8 @@
       proficiencyTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
     };
 
-    const renderHeadcountTable = (teams) => {
-      const labels = getTimeLabels();
+    const renderHeadcountTable = (teams, quarterRates) => {
+      const labels = getTimeLabels(quarterRates);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
@@ -1161,8 +1187,8 @@
       teamSizeTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
     };
 
-    const renderNewnessTable = (teams) => {
-      const labels = getTimeLabels();
+    const renderNewnessTable = (teams, quarterRates) => {
+      const labels = getTimeLabels(quarterRates);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
@@ -1187,8 +1213,8 @@
       newnessTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
     };
 
-    const renderBudgetChangeTable = (teams, redThreshold, orangeThreshold) => {
-      const labels = getTimeLabels();
+    const renderBudgetChangeTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
+      const labels = getTimeLabels(quarterRates);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
@@ -1214,53 +1240,119 @@
       budgetChangeTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
     };
 
-    const renderChart = (teams) => {
-      const datasets = teams.map((team, index) => {
-        const colors = ["#2563eb", "#0f766e", "#d97706", "#9333ea", "#dc2626"];
-        return {
-          label: team.name,
-          data: team.proficiencyMonthly.map((value) => Math.round(value * 1000) / 10),
-          borderColor: colors[index % colors.length],
-          backgroundColor: "transparent",
-          tension: 0.3,
-        };
-      });
+    const chartColors = ["#2563eb", "#7c3aed", "#d97706", "#dc2626", "#0ea5e9"];
 
-      if (chartInstance) {
-        chartInstance.destroy();
+    const buildDatasets = (teams, accessor, valueTransform = (value) => value) =>
+      teams.map((team, index) => ({
+        label: team.name,
+        data: getTimeSeries(accessor(team)).map((value) =>
+          Number.isFinite(value) ? valueTransform(value) : null
+        ),
+        borderColor: chartColors[index % chartColors.length],
+        backgroundColor: "transparent",
+        tension: 0.3,
+      }));
+
+    const renderChart = (key, canvas, labels, datasets, options) => {
+      const existing = chartInstances.get(key);
+      if (existing) {
+        existing.destroy();
       }
-
-      chartInstance = new Chart(chartCanvas, {
+      const instance = new Chart(canvas, {
         type: "line",
         data: {
-          labels: monthLabels,
+          labels,
           datasets,
         },
-        options: {
+        options,
+      });
+      chartInstances.set(key, instance);
+    };
+
+    const renderCharts = (teams, quarterRates) => {
+      const labels = getTimeLabels(quarterRates).map((label) => label.replace(" ", "\n"));
+      renderChart(
+        "team-size",
+        teamSizeCanvas,
+        labels,
+        buildDatasets(teams, (team) => team.totalMonthlyHeadcount, (value) => Number(value.toFixed(1))),
+        {
           responsive: true,
           plugins: {
-            legend: {
-              position: "bottom",
+            legend: { position: "bottom" },
+          },
+          scales: {
+            y: {
+              title: { display: true, text: "Headcount" },
             },
+          },
+        }
+      );
+      renderChart(
+        "newness",
+        newnessCanvas,
+        labels,
+        buildDatasets(teams, (team) => team.newnessMonthly, (value) => Number(value.toFixed(1))),
+        {
+          responsive: true,
+          plugins: {
+            legend: { position: "bottom" },
+          },
+          scales: {
+            y: {
+              title: { display: true, text: "New hires (training-adjusted)" },
+            },
+          },
+        }
+      );
+      renderChart(
+        "proficiency",
+        chartCanvas,
+        labels,
+        buildDatasets(teams, (team) => team.proficiencyMonthly, (value) => Math.round(value * 1000) / 10),
+        {
+          responsive: true,
+          plugins: {
+            legend: { position: "bottom" },
           },
           scales: {
             y: {
               min: 50,
               max: 100,
-              title: {
-                display: true,
-                text: "Proficiency (%)",
-              },
+              title: { display: true, text: "Proficiency (%)" },
             },
           },
-        },
-      });
+        }
+      );
+      renderChart(
+        "budget-change",
+        budgetChangeCanvas,
+        labels,
+        buildDatasets(teams, (team) => team.budgetChangeMonthly, (value) => Math.round(value * 1000) / 10),
+        {
+          responsive: true,
+          plugins: {
+            legend: { position: "bottom" },
+          },
+          scales: {
+            y: {
+              min: 0,
+              max: 100,
+              title: { display: true, text: "New hires (%)" },
+            },
+          },
+        }
+      );
     };
 
     const updateViewToggle = () => {
       const isChart = viewToggle.value === "chart";
-      proficiencyTable.classList.toggle("hidden", isChart);
-      proficiencyChart.classList.toggle("hidden", !isChart);
+      [teamSizeTable, newnessTable, proficiencyTable, budgetChangeTable].forEach((table) => {
+        table.classList.toggle("hidden", isChart);
+      });
+      [teamSizeChart, newnessChart, proficiencyChart, budgetChangeChart].forEach((chart) => {
+        chart.classList.toggle("hidden", !isChart);
+      });
     };
 
     const updateTimeColumnToggle = () => {
@@ -1292,11 +1384,11 @@
       const sortedNewHireRed = Math.max(newHireRedThreshold, newHireOrangeThreshold);
       const sortedNewHireOrange = Math.min(newHireRedThreshold, newHireOrangeThreshold);
 
-      renderHeadcountTable(proficiencyTeams);
-      renderBudgetChangeTable(proficiencyTeams, sortedNewHireRed, sortedNewHireOrange);
-      renderNewnessTable(proficiencyTeams);
-      renderProficiencyTable(proficiencyTeams, sortedRed, sortedOrange);
-      renderChart(proficiencyTeams);
+      renderHeadcountTable(proficiencyTeams, quarterProducts);
+      renderBudgetChangeTable(proficiencyTeams, sortedNewHireRed, sortedNewHireOrange, quarterProducts);
+      renderNewnessTable(proficiencyTeams, quarterProducts);
+      renderProficiencyTable(proficiencyTeams, sortedRed, sortedOrange, quarterProducts);
+      renderCharts(proficiencyTeams, quarterProducts);
       updateViewToggle();
       updateTimeColumnToggle();
       saveState();
