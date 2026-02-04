@@ -475,7 +475,6 @@
         <thead>
           <tr>
             <th>Team</th>
-            <th>Internal hiring (%)</th>
             <th>
               Current staff for
               <div class="subtle">Products / Quarter</div>
@@ -521,7 +520,6 @@
         <tbody>
           <tr>
             <td><input type="text" value="Core Platform" /></td>
-            <td><input type="number" min="0" max="100" step="1" value="0" /></td>
             <td><input type="number" min="0" value="18" /></td>
             <td><input type="number" min="0" step="1" value="22" /></td>
             <td><input type="number" min="0" step="1" value="28" /></td>
@@ -533,7 +531,6 @@
           </tr>
           <tr>
             <td><input type="text" value="Data Systems" /></td>
-            <td><input type="number" min="0" max="100" step="1" value="0" /></td>
             <td><input type="number" min="0" value="12" /></td>
             <td><input type="number" min="0" step="1" value="15" /></td>
             <td><input type="number" min="0" step="1" value="19" /></td>
@@ -545,7 +542,6 @@
           </tr>
           <tr>
             <td><input type="text" value="Client Success" /></td>
-            <td><input type="number" min="0" max="100" step="1" value="0" /></td>
             <td><input type="number" min="0" value="15" /></td>
             <td><input type="number" min="0" step="1" value="18" /></td>
             <td><input type="number" min="0" step="1" value="23" /></td>
@@ -593,7 +589,7 @@
       <p>
         Enter planned production in products per quarter (unit) for each quarter from 2026 through 2028. These values
         drive the staffing projections below. If a rate falls between the product levels in section 1, staffing is
-        linearly interpolated between the nearest levels.
+        linearly interpolated between the nearest levels. Capture internal hiring share per quarter in the row below.
       </p>
       <div class="table-scroll">
         <table id="monthly-products-table" class="compact-table">
@@ -826,7 +822,7 @@
         </li>
         <li>
           <strong>Split hires into high-fit and low-fit cohorts.</strong> The “Internal hiring (%)” field in Section 1
-          is treated as the share of hires who are high-fit. For each month:
+          is now set per quarter in Section 2 and treated as the share of hires who are high-fit. For each month:
           <div class="note">
             <em>High-fit hires = hires × internal hiring share</em><br />
             <em>Low-fit hires = hires − high-fit hires</em>
@@ -935,11 +931,14 @@
     const getProductLevels = () =>
       Array.from(document.querySelectorAll(".product-level-input")).map((input) => Number(input.value) || 0);
 
-    const buildQuarterProductsTable = (savedRates = []) => {
+    const buildQuarterProductsTable = (savedRates = [], savedInternalHiring = []) => {
       const body = monthlyProductsBody;
       const head = document.querySelector("#monthly-products-table thead");
       const defaultRates = quarterLabels.map((_, index) => (index < 4 ? 6 : index < 8 ? 7 : 8));
       const rates = savedRates.length === quarterLabels.length ? savedRates : defaultRates;
+      const defaultInternalHiring = quarterLabels.map(() => 0);
+      const internalHiring =
+        savedInternalHiring.length === quarterLabels.length ? savedInternalHiring : defaultInternalHiring;
       head.innerHTML = `
         <tr>
           <th>Time period</th>
@@ -959,6 +958,18 @@
             )
             .join("")}
         </tr>
+        <tr>
+          <td class="subtle">Internal hiring (%)</td>
+          ${internalHiring
+            .map(
+              (value) => `
+                <td>
+                  <input class="internal-hiring-input" type="number" min="0" max="100" step="1" value="${value}" />
+                </td>
+              `
+            )
+            .join("")}
+        </tr>
       `;
     };
 
@@ -968,19 +979,25 @@
       return rows.map((row) => {
         const inputs = row.querySelectorAll("input");
         const staffingLevels = Array.from(inputs)
-          .slice(3, 3 + levelCount)
+          .slice(2, 2 + levelCount)
           .map((input) => Number(input.value) || 0);
         return {
           name: inputs[0].value || "Team",
-          highFitShare: Number(inputs[1].value) || 0,
-          current: Number(inputs[2].value) || 0,
+          current: Number(inputs[1].value) || 0,
           staffingLevels,
         };
       });
     };
 
     const parseQuarterProducts = () =>
-      Array.from(monthlyProductsBody.querySelectorAll("input")).map((input) => Number(input.value) || 0);
+      Array.from(monthlyProductsBody.querySelectorAll(".monthly-product-input")).map(
+        (input) => Number(input.value) || 0
+      );
+
+    const parseQuarterInternalHiring = () =>
+      Array.from(monthlyProductsBody.querySelectorAll(".internal-hiring-input")).map(
+        (input) => Number(input.value) || 0
+      );
 
     const expandQuarterRatesToMonthly = (quarterRates) =>
       quarterRates.flatMap((rate) => [rate, rate, rate]);
@@ -1045,7 +1062,7 @@
         };
       });
 
-    const computeProficiencyTimeline = (teams, trainingCurve) =>
+    const computeProficiencyTimeline = (teams, trainingCurve, internalHiringMonthly) =>
       teams.map((team) => {
         const totalMonthlyHeadcount = [];
         const proficiencyMonthly = [];
@@ -1059,7 +1076,8 @@
             const hires = team.hiresMonthly[hireMonth] || 0;
             totalHeadcount += hires;
             const trainingIndex = monthIndex - hireMonth;
-            const highFitShare = Math.min(Math.max(team.highFitShare, 0), 100) / 100;
+            const quarterShare = internalHiringMonthly[hireMonth] ?? 0;
+            const highFitShare = Math.min(Math.max(quarterShare, 0), 100) / 100;
             const highFitHires = hires * highFitShare;
             const lowFitHires = hires - highFitHires;
             const highFitRate = trainingCurve.highFit[trainingIndex] ?? 1;
@@ -1439,14 +1457,16 @@
       const teams = parseTeams();
       const productLevels = getProductLevels();
       const quarterProducts = parseQuarterProducts();
+      const quarterInternalHiring = parseQuarterInternalHiring();
       updateQuarterBalance(quarterProducts);
       const monthlyProducts = expandQuarterRatesToMonthly(quarterProducts);
+      const monthlyInternalHiring = expandQuarterRatesToMonthly(quarterInternalHiring);
 
       const staffedTeams = computeMonthlyStaffing(teams, productLevels, monthlyProducts);
       updateStaffingSummary(staffedTeams);
 
       const trainingCurve = parseTrainingCurve();
-      const proficiencyTeams = computeProficiencyTimeline(staffedTeams, trainingCurve);
+      const proficiencyTeams = computeProficiencyTimeline(staffedTeams, trainingCurve, monthlyInternalHiring);
 
       const redThreshold = (Number(thresholdRedInput.value) || 0) / 100;
       const orangeThreshold = (Number(thresholdOrangeInput.value) || 0) / 100;
@@ -1476,6 +1496,7 @@
           Array.from(row.querySelectorAll("input")).map((input) => input.value)
         ),
         quarterProducts: parseQuarterProducts(),
+        quarterInternalHiring: parseQuarterInternalHiring(),
         trainingCurve: {
           lowFit: Array.from(trainingTable.tBodies[0].rows[0].querySelectorAll("input")).map(
             (input) => input.value
@@ -1544,7 +1565,11 @@
             return;
           }
           const inputs = row.querySelectorAll("input");
-          rowValues.slice(0, 3 + levelCount).forEach((value, index) => {
+          const values =
+            rowValues.length >= 3 + levelCount
+              ? [rowValues[0], rowValues[2], ...rowValues.slice(3)]
+              : rowValues;
+          values.slice(0, 2 + levelCount).forEach((value, index) => {
             if (inputs[index] !== undefined && value !== undefined) {
               inputs[index].value = value;
             }
@@ -1552,10 +1577,18 @@
         });
       }
       if (Array.isArray(stored.quarterProducts)) {
-        const monthlyInputs = monthlyProductsBody.querySelectorAll("input");
+        const monthlyInputs = monthlyProductsBody.querySelectorAll(".monthly-product-input");
         stored.quarterProducts.forEach((value, index) => {
           if (monthlyInputs[index] && value !== undefined) {
             monthlyInputs[index].value = value;
+          }
+        });
+      }
+      if (Array.isArray(stored.quarterInternalHiring)) {
+        const internalInputs = monthlyProductsBody.querySelectorAll(".internal-hiring-input");
+        stored.quarterInternalHiring.forEach((value, index) => {
+          if (internalInputs[index] && value !== undefined) {
+            internalInputs[index].value = value;
           }
         });
       }
@@ -1616,7 +1649,6 @@
         .join("");
       row.innerHTML = `
         <td><input type="text" value="" /></td>
-        <td><input type="number" min="0" max="100" step="1" value="0" /></td>
         <td><input type="number" min="0" value="0" /></td>
         ${staffingCells}
       `;
@@ -1696,7 +1728,6 @@
       const currentProductLevel = Number(currentProductInput?.value) || 0;
       const header = [
         "Team",
-        "Internal hiring (%)",
         `Current staff @ ${currentProductLevel} products/qtr`,
         ...productLevels.map((level) => `Staff needed @ ${level} products/qtr`),
       ];
@@ -1726,7 +1757,7 @@
           return;
         }
         const header = rows[0];
-        const requiredLevels = Math.max(0, header.length - 3);
+        const requiredLevels = Math.max(0, header.length - 2);
         const currentLevels = getProductLevels().length;
         if (requiredLevels > currentLevels) {
           for (let i = currentLevels; i < requiredLevels; i += 1) {
@@ -1734,7 +1765,7 @@
           }
         }
         const productLevelInputs = Array.from(document.querySelectorAll(".product-level-input"));
-        header.slice(3).forEach((cell, index) => {
+        header.slice(2).forEach((cell, index) => {
           const match = cell.match(/([0-9]+(?:\.[0-9]+)?)/);
           if (match && productLevelInputs[index]) {
             productLevelInputs[index].value = match[1];
@@ -1750,7 +1781,7 @@
         dataRows.forEach((dataRow, rowIndex) => {
           const row = teamTable.tBodies[0].rows[rowIndex];
           const inputs = row.querySelectorAll("input");
-          const values = dataRow.slice(0, 3 + levelCount);
+          const values = dataRow.slice(0, 2 + levelCount);
           values.forEach((value, index) => {
             if (inputs[index]) {
               inputs[index].value = value;
@@ -1891,7 +1922,7 @@
     });
 
     const storedState = getStoredState();
-    buildQuarterProductsTable(storedState?.quarterProducts);
+    buildQuarterProductsTable(storedState?.quarterProducts, storedState?.quarterInternalHiring);
     ensureTeamRowCount(13);
     bindSectionToggles();
     bindTableToggles();
