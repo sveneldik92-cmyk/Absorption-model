@@ -185,7 +185,7 @@
     }
 
     .heat-high {
-      background: #dbeafe;
+      background: transparent;
     }
 
     .chart-wrapper {
@@ -779,6 +779,23 @@
           </div>
         </div>
       </div>
+      <div class="card table-card">
+        <div class="table-card-header">
+          <div>
+            <h3>Untrained vs trained population</h3>
+            <div class="note">
+              Untrained population ÷ trained population, highlighting the training burden relative to experienced staff.
+            </div>
+          </div>
+          <button class="table-toggle-button" type="button" data-target="untrained-vs-trained-body">Collapse</button>
+        </div>
+        <div class="table-card-body" id="untrained-vs-trained-body">
+          <div class="table-scroll" id="untrained-vs-trained-table"></div>
+          <div id="untrained-vs-trained-chart" class="hidden chart-wrapper">
+            <canvas id="untrained-vs-trained-canvas" height="120"></canvas>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -878,6 +895,7 @@
     const timeColumnToggle = document.getElementById("time-column-toggle");
     const teamSizeTable = document.getElementById("team-size-table");
     const budgetChangeTable = document.getElementById("budget-change-table");
+    const untrainedVsTrainedTable = document.getElementById("untrained-vs-trained-table");
     const newnessTable = document.getElementById("newness-table");
     const proficiencyTable = document.getElementById("proficiency-table");
     const proficiencyChart = document.getElementById("proficiency-chart");
@@ -888,6 +906,8 @@
     const newnessCanvas = document.getElementById("newness-canvas");
     const budgetChangeChart = document.getElementById("budget-change-chart");
     const budgetChangeCanvas = document.getElementById("budget-change-canvas");
+    const untrainedVsTrainedChart = document.getElementById("untrained-vs-trained-chart");
+    const untrainedVsTrainedCanvas = document.getElementById("untrained-vs-trained-canvas");
     const exportCsvButton = document.getElementById("export-csv");
     const importCsvButton = document.getElementById("import-csv");
     const csvFileInput = document.getElementById("csv-file");
@@ -1063,6 +1083,13 @@
               return null;
             }
             return newnessMonthly[index] / value;
+          }),
+          untrainedVsTrainedMonthly: totalMonthlyHeadcount.map((value, index) => {
+            const trained = value - newnessMonthly[index];
+            if (trained <= 0) {
+              return null;
+            }
+            return newnessMonthly[index] / trained;
           }),
         };
       });
@@ -1240,6 +1267,33 @@
       budgetChangeTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
     };
 
+    const renderUntrainedVsTrainedTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
+      const labels = getTimeLabels(quarterRates);
+      const header = `
+        <table class="proficiency-table compact-table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      const bodyRows = teams.map((team) => {
+        const cells = getTimeSeries(team.untrainedVsTrainedMonthly).map((value) => {
+          if (!Number.isFinite(value)) {
+            return "<td>-</td>";
+          }
+          const className = getHeatClassHighIsBad(value, redThreshold, orangeThreshold);
+          return `<td class="${className}">${formatNumber(value * 100, 0)}%</td>`;
+        });
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
+      });
+
+      untrainedVsTrainedTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+    };
+
     const chartColors = ["#2563eb", "#7c3aed", "#d97706", "#dc2626", "#0ea5e9"];
 
     const buildDatasets = (teams, accessor, valueTransform = (value) => value) =>
@@ -1343,14 +1397,33 @@
           },
         }
       );
+      renderChart(
+        "untrained-vs-trained",
+        untrainedVsTrainedCanvas,
+        labels,
+        buildDatasets(teams, (team) => team.untrainedVsTrainedMonthly, (value) => Math.round(value * 1000) / 10),
+        {
+          responsive: true,
+          plugins: {
+            legend: { position: "bottom" },
+          },
+          scales: {
+            y: {
+              min: 0,
+              suggestedMax: 200,
+              title: { display: true, text: "Untrained vs trained (%)" },
+            },
+          },
+        }
+      );
     };
 
     const updateViewToggle = () => {
       const isChart = viewToggle.value === "chart";
-      [teamSizeTable, newnessTable, proficiencyTable, budgetChangeTable].forEach((table) => {
+      [teamSizeTable, newnessTable, proficiencyTable, budgetChangeTable, untrainedVsTrainedTable].forEach((table) => {
         table.classList.toggle("hidden", isChart);
       });
-      [teamSizeChart, newnessChart, proficiencyChart, budgetChangeChart].forEach((chart) => {
+      [teamSizeChart, newnessChart, proficiencyChart, budgetChangeChart, untrainedVsTrainedChart].forEach((chart) => {
         chart.classList.toggle("hidden", !isChart);
       });
     };
@@ -1386,6 +1459,7 @@
 
       renderHeadcountTable(proficiencyTeams, quarterProducts);
       renderBudgetChangeTable(proficiencyTeams, sortedNewHireRed, sortedNewHireOrange, quarterProducts);
+      renderUntrainedVsTrainedTable(proficiencyTeams, sortedNewHireRed, sortedNewHireOrange, quarterProducts);
       renderNewnessTable(proficiencyTeams, quarterProducts);
       renderProficiencyTable(proficiencyTeams, sortedRed, sortedOrange, quarterProducts);
       renderCharts(proficiencyTeams, quarterProducts);
