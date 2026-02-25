@@ -710,6 +710,14 @@
           Table columns
           <button type="button" class="table-toggle-button" id="time-column-toggle">Show quarters</button>
         </label>
+        <label>
+          Experience band lower (months)
+          <input type="number" id="experience-band-lower" min="0" step="1" value="3" />
+        </label>
+        <label>
+          Experience band upper (months)
+          <input type="number" id="experience-band-upper" min="0" step="1" value="12" />
+        </label>
       </div>
       <div class="card table-card" style="margin-top: 16px;">
         <div class="table-card-header">
@@ -741,6 +749,20 @@
           <div id="newness-chart" class="hidden chart-wrapper">
             <canvas id="newness-canvas" height="120"></canvas>
           </div>
+        </div>
+      </div>
+      <div class="card table-card">
+        <div class="table-card-header">
+          <div>
+            <h3>Team members within experience band (absolute)</h3>
+            <div class="note">
+              Counts people hired within the selected lower/upper month range (inclusive).
+            </div>
+          </div>
+          <button class="table-toggle-button" type="button" data-target="experience-band-body">Collapse</button>
+        </div>
+        <div class="table-card-body" id="experience-band-body">
+          <div class="table-scroll" id="experience-band-table"></div>
         </div>
       </div>
       <div class="card table-card">
@@ -887,12 +909,15 @@
     const thresholdOrangeInput = document.getElementById("threshold-orange");
     const newHireThresholdRedInput = document.getElementById("new-hire-threshold-red");
     const newHireThresholdOrangeInput = document.getElementById("new-hire-threshold-orange");
+    const experienceBandLowerInput = document.getElementById("experience-band-lower");
+    const experienceBandUpperInput = document.getElementById("experience-band-upper");
     const viewToggle = document.getElementById("view-toggle");
     const timeColumnToggle = document.getElementById("time-column-toggle");
     const teamSizeTable = document.getElementById("team-size-table");
     const budgetChangeTable = document.getElementById("budget-change-table");
     const untrainedVsTrainedTable = document.getElementById("untrained-vs-trained-table");
     const newnessTable = document.getElementById("newness-table");
+    const experienceBandTable = document.getElementById("experience-band-table");
     const proficiencyTable = document.getElementById("proficiency-table");
     const proficiencyChart = document.getElementById("proficiency-chart");
     const chartCanvas = document.getElementById("chart-canvas");
@@ -1112,6 +1137,27 @@
         };
       });
 
+    const computeExperienceBandMonthly = (teams, lowerMonths, upperMonths) => {
+      const minMonths = Math.max(0, Math.min(lowerMonths, upperMonths));
+      const maxMonths = Math.max(0, Math.max(lowerMonths, upperMonths));
+      return teams.map((team) => {
+        const experienceBandMonthly = monthLabels.map((_, monthIndex) => {
+          let bandCount = 0;
+          for (let hireMonth = 0; hireMonth <= monthIndex; hireMonth += 1) {
+            const monthsAgo = monthIndex - hireMonth;
+            if (monthsAgo >= minMonths && monthsAgo <= maxMonths) {
+              bandCount += team.hiresMonthly[hireMonth] || 0;
+            }
+          }
+          return bandCount;
+        });
+        return {
+          ...team,
+          experienceBandMonthly,
+        };
+      });
+    };
+
     const updateStaffingSummary = (teams) => {
       const monthCount = monthLabels.length;
       const monthlyTotals = Array(monthCount).fill(0);
@@ -1256,6 +1302,32 @@
       });
 
       newnessTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+    };
+
+    const renderExperienceBandTable = (teams, quarterRates) => {
+      const labels = getTimeLabels(quarterRates);
+      const header = `
+        <table class="proficiency-table compact-table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      const bodyRows = teams.map((team) => {
+        const cells = getTimeSeries(team.experienceBandMonthly).map((value) => {
+          if (!Number.isFinite(value)) {
+            return "<td>-</td>";
+          }
+          return `<td>${formatNumber(value, 1)}</td>`;
+        });
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
+      });
+
+      experienceBandTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
     };
 
     const renderBudgetChangeTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
@@ -1438,7 +1510,7 @@
 
     const updateViewToggle = () => {
       const isChart = viewToggle.value === "chart";
-      [teamSizeTable, newnessTable, proficiencyTable, budgetChangeTable, untrainedVsTrainedTable].forEach((table) => {
+      [teamSizeTable, newnessTable, experienceBandTable, proficiencyTable, budgetChangeTable, untrainedVsTrainedTable].forEach((table) => {
         table.classList.toggle("hidden", isChart);
       });
       [teamSizeChart, newnessChart, proficiencyChart, budgetChangeChart, untrainedVsTrainedChart].forEach((chart) => {
@@ -1467,6 +1539,13 @@
 
       const trainingCurve = parseTrainingCurve();
       const proficiencyTeams = computeProficiencyTimeline(staffedTeams, trainingCurve, monthlyInternalHiring);
+      const experienceBandLower = Number(experienceBandLowerInput.value) || 0;
+      const experienceBandUpper = Number(experienceBandUpperInput.value) || 0;
+      const teamsWithExperienceBand = computeExperienceBandMonthly(
+        proficiencyTeams,
+        experienceBandLower,
+        experienceBandUpper
+      );
 
       const redThreshold = (Number(thresholdRedInput.value) || 0) / 100;
       const orangeThreshold = (Number(thresholdOrangeInput.value) || 0) / 100;
@@ -1477,12 +1556,13 @@
       const sortedNewHireRed = Math.max(newHireRedThreshold, newHireOrangeThreshold);
       const sortedNewHireOrange = Math.min(newHireRedThreshold, newHireOrangeThreshold);
 
-      renderHeadcountTable(proficiencyTeams, quarterProducts);
-      renderBudgetChangeTable(proficiencyTeams, sortedNewHireRed, sortedNewHireOrange, quarterProducts);
-      renderUntrainedVsTrainedTable(proficiencyTeams, sortedNewHireRed, sortedNewHireOrange, quarterProducts);
-      renderNewnessTable(proficiencyTeams, quarterProducts);
-      renderProficiencyTable(proficiencyTeams, sortedRed, sortedOrange, quarterProducts);
-      renderCharts(proficiencyTeams, quarterProducts);
+      renderHeadcountTable(teamsWithExperienceBand, quarterProducts);
+      renderBudgetChangeTable(teamsWithExperienceBand, sortedNewHireRed, sortedNewHireOrange, quarterProducts);
+      renderUntrainedVsTrainedTable(teamsWithExperienceBand, sortedNewHireRed, sortedNewHireOrange, quarterProducts);
+      renderNewnessTable(teamsWithExperienceBand, quarterProducts);
+      renderExperienceBandTable(teamsWithExperienceBand, quarterProducts);
+      renderProficiencyTable(teamsWithExperienceBand, sortedRed, sortedOrange, quarterProducts);
+      renderCharts(teamsWithExperienceBand, quarterProducts);
       updateViewToggle();
       updateTimeColumnToggle();
       saveState();
@@ -1510,6 +1590,8 @@
           orange: thresholdOrangeInput.value,
           newHireRed: newHireThresholdRedInput.value,
           newHireOrange: newHireThresholdOrangeInput.value,
+          experienceBandLower: experienceBandLowerInput.value,
+          experienceBandUpper: experienceBandUpperInput.value,
         },
         view: viewToggle.value,
         timeColumnView,
@@ -1618,6 +1700,12 @@
         }
         if (stored.thresholds.newHireOrange !== undefined) {
           newHireThresholdOrangeInput.value = stored.thresholds.newHireOrange;
+        }
+        if (stored.thresholds.experienceBandLower !== undefined) {
+          experienceBandLowerInput.value = stored.thresholds.experienceBandLower;
+        }
+        if (stored.thresholds.experienceBandUpper !== undefined) {
+          experienceBandUpperInput.value = stored.thresholds.experienceBandUpper;
         }
       }
       if (stored.view) {
