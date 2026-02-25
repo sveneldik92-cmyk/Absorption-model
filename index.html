@@ -476,11 +476,6 @@
           <tr>
             <th>Team</th>
             <th>
-              Current staff for
-              <div class="subtle">Products / Quarter</div>
-              <input class="current-product-input" type="number" min="0" step="1" value="4" />
-            </th>
-            <th>
               Staffing for
               <div class="subtle">Products / Quarter</div>
               <input class="product-level-input" type="number" min="0" step="1" value="2" />
@@ -520,7 +515,6 @@
         <tbody>
           <tr>
             <td><input type="text" value="Core Platform" /></td>
-            <td><input type="number" min="0" value="18" /></td>
             <td><input type="number" min="0" step="1" value="22" /></td>
             <td><input type="number" min="0" step="1" value="28" /></td>
             <td><input type="number" min="0" step="1" value="36" /></td>
@@ -531,7 +525,6 @@
           </tr>
           <tr>
             <td><input type="text" value="Data Systems" /></td>
-            <td><input type="number" min="0" value="12" /></td>
             <td><input type="number" min="0" step="1" value="15" /></td>
             <td><input type="number" min="0" step="1" value="19" /></td>
             <td><input type="number" min="0" step="1" value="24" /></td>
@@ -542,7 +535,6 @@
           </tr>
           <tr>
             <td><input type="text" value="Client Success" /></td>
-            <td><input type="number" min="0" value="15" /></td>
             <td><input type="number" min="0" step="1" value="18" /></td>
             <td><input type="number" min="0" step="1" value="23" /></td>
             <td><input type="number" min="0" step="1" value="29" /></td>
@@ -936,8 +928,6 @@
     const removeTeamButton = document.getElementById("remove-team");
     const addLevelButton = document.getElementById("add-level");
     const removeLevelButton = document.getElementById("remove-level");
-    const currentProductInput = document.querySelector(".current-product-input");
-
     const chartInstances = new Map();
     let isRestoring = false;
     let timeColumnView = "month";
@@ -1004,11 +994,11 @@
       return rows.map((row) => {
         const inputs = row.querySelectorAll("input");
         const staffingLevels = Array.from(inputs)
-          .slice(2, 2 + levelCount)
+          .slice(1, 1 + levelCount)
           .map((input) => Number(input.value) || 0);
         return {
           name: inputs[0].value || "Team",
-          current: Number(inputs[1].value) || 0,
+          current: staffingLevels[0] || 0,
           staffingLevels,
         };
       });
@@ -1570,7 +1560,6 @@
 
     const saveState = () => {
       const state = {
-        currentProductLevel: currentProductInput?.value ?? "",
         productLevels: getProductLevels(),
         teamRows: Array.from(teamTable.tBodies[0].rows).map((row) =>
           Array.from(row.querySelectorAll("input")).map((input) => input.value)
@@ -1616,9 +1605,6 @@
         return;
       }
       isRestoring = true;
-      if (typeof stored.currentProductLevel === "string" && currentProductInput) {
-        currentProductInput.value = stored.currentProductLevel;
-      }
       if (Array.isArray(stored.productLevels)) {
         const currentLevels = getProductLevels().length;
         const targetLevels = stored.productLevels.length;
@@ -1651,7 +1637,7 @@
             rowValues.length >= 3 + levelCount
               ? [rowValues[0], rowValues[2], ...rowValues.slice(3)]
               : rowValues;
-          values.slice(0, 2 + levelCount).forEach((value, index) => {
+          values.slice(0, 1 + levelCount).forEach((value, index) => {
             if (inputs[index] !== undefined && value !== undefined) {
               inputs[index].value = value;
             }
@@ -1737,7 +1723,6 @@
         .join("");
       row.innerHTML = `
         <td><input type="text" value="" /></td>
-        <td><input type="number" min="0" value="0" /></td>
         ${staffingCells}
       `;
       return row;
@@ -1813,10 +1798,8 @@
 
     const exportCsv = () => {
       const productLevels = getProductLevels();
-      const currentProductLevel = Number(currentProductInput?.value) || 0;
       const header = [
         "Team",
-        `Current staff @ ${currentProductLevel} products/qtr`,
         ...productLevels.map((level) => `Staff needed @ ${level} products/qtr`),
       ];
       const rows = [header];
@@ -1845,7 +1828,8 @@
           return;
         }
         const header = rows[0];
-        const requiredLevels = Math.max(0, header.length - 2);
+        const hasLegacyCurrentColumn = /current\s+staff/i.test(header[1] || "");
+        const requiredLevels = Math.max(0, header.length - (hasLegacyCurrentColumn ? 2 : 1));
         const currentLevels = getProductLevels().length;
         if (requiredLevels > currentLevels) {
           for (let i = currentLevels; i < requiredLevels; i += 1) {
@@ -1853,23 +1837,21 @@
           }
         }
         const productLevelInputs = Array.from(document.querySelectorAll(".product-level-input"));
-        header.slice(2).forEach((cell, index) => {
+        header.slice(hasLegacyCurrentColumn ? 2 : 1).forEach((cell, index) => {
           const match = cell.match(/([0-9]+(?:\.[0-9]+)?)/);
           if (match && productLevelInputs[index]) {
             productLevelInputs[index].value = match[1];
           }
         });
-        const currentMatch = header[1]?.match(/([0-9]+(?:\.[0-9]+)?)/);
-        if (currentMatch && currentProductInput) {
-          currentProductInput.value = currentMatch[1];
-        }
         const dataRows = rows.slice(1);
         ensureTeamRowCount(dataRows.length);
         const levelCount = getProductLevels().length;
         dataRows.forEach((dataRow, rowIndex) => {
           const row = teamTable.tBodies[0].rows[rowIndex];
           const inputs = row.querySelectorAll("input");
-          const values = dataRow.slice(0, 2 + levelCount);
+          const values = hasLegacyCurrentColumn
+            ? [dataRow[0], ...dataRow.slice(2, 2 + levelCount)]
+            : dataRow.slice(0, 1 + levelCount);
           values.forEach((value, index) => {
             if (inputs[index]) {
               inputs[index].value = value;
