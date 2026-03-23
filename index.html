@@ -14,6 +14,8 @@
       --panel-bg: #111827;
       --panel-muted: #1f2937;
       --panel-soft: #0b1220;
+      --table-white: #ffffff;
+      --table-white-text: #0f172a;
       --border: #334155;
       --border-strong: #475569;
       --text: #e2e8f0;
@@ -159,6 +161,19 @@
       margin-top: 16px;
     }
 
+    .meta-grid {
+      display: grid;
+      gap: 12px 16px;
+      margin-top: 16px;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 16px;
+      align-items: end;
+    }
+
     .meta label {
       display: flex;
       flex-direction: column;
@@ -166,6 +181,10 @@
       font-size: 0.85rem;
       gap: 4px;
       color: var(--text);
+    }
+
+    .meta-grid label {
+      min-width: 170px;
     }
 
     .note {
@@ -182,6 +201,14 @@
       display: inline-flex;
       gap: 8px;
       align-items: center;
+    }
+
+    .toggle-group {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      font-weight: 600;
+      font-size: 0.85rem;
     }
 
     .hidden {
@@ -221,6 +248,8 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+      background: var(--table-white);
+      color: var(--table-white-text);
     }
 
     .table-card + .table-card {
@@ -236,6 +265,11 @@
 
     .table-card-header h3 {
       margin: 0;
+    }
+
+    .table-card .note,
+    .table-card .subtle {
+      color: #475569;
     }
 
     .table-toggle-button {
@@ -421,21 +455,14 @@
     }
 
     #step-2 .compact-table input[type="number"] {
-      width: 100%;
       height: 28px;
-      margin: 0;
-      padding: 4px 6px;
-    }
-
-    #step-3 .compact-table input[type="number"] {
-      width: 37.5%;
+      margin: 0 auto;
     }
 
     #step-3 input[type="number"],
     #step-4 input[type="number"],
     #step-5 input[type="number"],
     #step-5 select {
-      width: 50%;
       margin: 0 auto;
     }
 
@@ -467,8 +494,29 @@
     }
 
     #step-2 .compact-table input[type="number"] {
+      width: 3ch;
+      min-width: 3ch;
+      padding-inline: 0.2rem;
       font-size: inherit;
       text-align: center;
+    }
+
+    #step-3 .compact-table input[type="number"] {
+      width: 3ch;
+      min-width: 3ch;
+    }
+
+    .percent-input {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      width: 100%;
+    }
+
+    .percent-input span {
+      font-size: inherit;
+      color: inherit;
     }
 
     #internal-hiring-table td:first-child,
@@ -479,6 +527,8 @@
     #step-5 .compact-table th,
     #step-5 .compact-table td {
       min-width: 15px;
+      background: var(--table-white);
+      color: var(--table-white-text);
     }
 
     #step-5 .compact-table th:first-child,
@@ -486,12 +536,14 @@
       min-width: 20px;
       white-space: normal;
       word-break: break-word;
+      background: var(--table-white);
     }
 
 
     #step-5 input[type="number"],
     #step-5 select {
-      width: 75%;
+      width: auto;
+      min-width: 6ch;
     }
 
     #step-2 .compact-table thead th,
@@ -732,60 +784,14 @@
       <p>
         Define how quickly new employees reach full proficiency. This curve is applied to each month of hires.
       </p>
+      <div class="section-actions">
+        <button type="button" id="remove-training-month">Remove month</button>
+        <button type="button" id="add-training-month">Add month</button>
+      </div>
       <div class="table-scroll">
         <table id="training-table" class="compact-table">
-        <thead>
-          <tr>
-            <th>Month Since Hire</th>
-            <th>1</th>
-            <th>2</th>
-            <th>3</th>
-            <th>4</th>
-            <th>5</th>
-            <th>6</th>
-            <th>7</th>
-            <th>8</th>
-            <th>9</th>
-            <th>10</th>
-            <th>11</th>
-            <th>12</th>
-            <th>13</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Low-Fit Proficiency (%)</td>
-            <td><input type="number" min="0" max="100" value="0" /></td>
-            <td><input type="number" min="0" max="100" value="18" /></td>
-            <td><input type="number" min="0" max="100" value="32" /></td>
-            <td><input type="number" min="0" max="100" value="45" /></td>
-            <td><input type="number" min="0" max="100" value="55" /></td>
-            <td><input type="number" min="0" max="100" value="65" /></td>
-            <td><input type="number" min="0" max="100" value="74" /></td>
-            <td><input type="number" min="0" max="100" value="82" /></td>
-            <td><input type="number" min="0" max="100" value="88" /></td>
-            <td><input type="number" min="0" max="100" value="93" /></td>
-            <td><input type="number" min="0" max="100" value="97" /></td>
-            <td><input type="number" min="0" max="100" value="100" /></td>
-            <td><input type="number" min="0" max="100" value="100" /></td>
-          </tr>
-          <tr>
-            <td>High-Fit Proficiency (%)</td>
-            <td><input type="number" min="0" max="100" value="0" /></td>
-            <td><input type="number" min="0" max="100" value="25" /></td>
-            <td><input type="number" min="0" max="100" value="45" /></td>
-            <td><input type="number" min="0" max="100" value="60" /></td>
-            <td><input type="number" min="0" max="100" value="70" /></td>
-            <td><input type="number" min="0" max="100" value="80" /></td>
-            <td><input type="number" min="0" max="100" value="88" /></td>
-            <td><input type="number" min="0" max="100" value="92" /></td>
-            <td><input type="number" min="0" max="100" value="95" /></td>
-            <td><input type="number" min="0" max="100" value="97" /></td>
-            <td><input type="number" min="0" max="100" value="99" /></td>
-            <td><input type="number" min="0" max="100" value="100" /></td>
-            <td><input type="number" min="0" max="100" value="100" /></td>
-          </tr>
-        </tbody>
+          <thead></thead>
+          <tbody></tbody>
         </table>
       </div>
     </div>
@@ -801,7 +807,8 @@
         Review headcount growth, training-adjusted newness, and monthly proficiency rates. Set a threshold to apply
         conditional formatting and toggle the chart view.
       </p>
-      <div class="meta">
+      <div class="meta-grid">
+        <div class="meta-row">
         <label>
           Red threshold (%)
           <input type="number" id="threshold-red" min="0" max="100" value="80" />
@@ -810,33 +817,40 @@
           Orange threshold (%)
           <input type="number" id="threshold-orange" min="0" max="100" value="90" />
         </label>
-        <label>
-          New-hire red threshold (%)
-          <input type="number" id="new-hire-threshold-red" min="0" max="100" value="25" />
-        </label>
-        <label>
-          New-hire orange threshold (%)
-          <input type="number" id="new-hire-threshold-orange" min="0" max="100" value="20" />
-        </label>
-        <label class="toggle">
-          View
-          <select id="view-toggle">
-            <option value="table" selected>Table</option>
-            <option value="chart">Chart</option>
-          </select>
-        </label>
-        <label class="toggle">
-          Table columns
-          <button type="button" class="table-toggle-button" id="time-column-toggle">Show quarters</button>
-        </label>
-        <label>
-          Experience band lower (months)
-          <input type="number" id="experience-band-lower" min="0" step="1" value="3" />
-        </label>
-        <label>
-          Experience band upper (months)
-          <input type="number" id="experience-band-upper" min="0" step="1" value="12" />
-        </label>
+        </div>
+        <div class="meta-row">
+          <label>
+            New-hire red threshold (%)
+            <input type="number" id="new-hire-threshold-red" min="0" max="100" value="25" />
+          </label>
+          <label>
+            New-hire orange threshold (%)
+            <input type="number" id="new-hire-threshold-orange" min="0" max="100" value="20" />
+          </label>
+        </div>
+        <div class="meta-row">
+          <label>
+            Experience band lower (months)
+            <input type="number" id="experience-band-lower" min="0" step="1" value="3" />
+          </label>
+          <label>
+            Experience band upper (months)
+            <input type="number" id="experience-band-upper" min="0" step="1" value="12" />
+          </label>
+        </div>
+        <div class="meta-row">
+          <label class="toggle">
+            View
+            <select id="view-toggle">
+              <option value="table" selected>Table</option>
+              <option value="chart">Chart</option>
+            </select>
+          </label>
+          <div class="toggle-group">
+            <span>Table columns</span>
+            <button type="button" class="table-toggle-button" id="time-column-toggle">Show quarters</button>
+          </div>
+        </div>
       </div>
       <div class="card table-card" style="margin-top: 16px;">
         <div class="table-card-header">
@@ -1020,8 +1034,8 @@
 
     const TIMELINE_START_YEAR = 2026;
     const DEFAULT_QUARTER_COUNT = 10;
-    const DEFAULT_TEAM_COUNT = 15;
-    const DEFAULT_LEVEL_COUNT = 10;
+    const DEFAULT_TEAM_COUNT = 13;
+    const DEFAULT_LEVEL_COUNT = 12;
 
     const teamTable = document.getElementById("team-table");
     const trainingTable = document.getElementById("training-table");
@@ -1067,11 +1081,70 @@
     const removeLevelButton = document.getElementById("remove-level");
     const addQuarterButton = document.getElementById("add-quarter");
     const removeQuarterButton = document.getElementById("remove-quarter");
+    const addTrainingMonthButton = document.getElementById("add-training-month");
+    const removeTrainingMonthButton = document.getElementById("remove-training-month");
     const chartInstances = new Map();
     let isRestoring = false;
     let timeColumnView = "month";
     let quarterCount = DEFAULT_QUARTER_COUNT;
     const STORAGE_KEY = "team-growth-proficiency-state";
+    const DEFAULT_TRAINING_CURVE = {
+      lowFit: [0, 18, 32, 45, 55, 65, 74, 82, 88, 93, 97, 100, 100],
+      highFit: [0, 25, 45, 60, 70, 80, 88, 92, 95, 97, 99, 100, 100],
+    };
+
+    const getDefaultTrainingValue = (curveName, index) => {
+      const defaults = DEFAULT_TRAINING_CURVE[curveName] || [];
+      if (index < defaults.length) {
+        return defaults[index];
+      }
+      return 100;
+    };
+
+    const buildTrainingTable = (savedCurve = {}) => {
+      const lowFitValues = Array.isArray(savedCurve.lowFit) ? savedCurve.lowFit : DEFAULT_TRAINING_CURVE.lowFit;
+      const highFitValues = Array.isArray(savedCurve.highFit) ? savedCurve.highFit : DEFAULT_TRAINING_CURVE.highFit;
+      const monthCount = Math.max(lowFitValues.length, highFitValues.length, DEFAULT_TRAINING_CURVE.lowFit.length);
+      trainingTable.tHead.innerHTML = `
+        <tr>
+          <th>Month Since Hire</th>
+          ${Array.from({ length: monthCount }, (_, index) => `<th>${index + 1}</th>`).join("")}
+        </tr>
+      `;
+      trainingTable.tBodies[0].innerHTML = [
+        { label: "Low-Fit Proficiency (%)", key: "lowFit", values: lowFitValues },
+        { label: "High-Fit Proficiency (%)", key: "highFit", values: highFitValues },
+      ].map(({ label, key, values }) => `
+        <tr data-curve="${key}">
+          <td>${label}</td>
+          ${Array.from({ length: monthCount }, (_, index) => `<td><input type="number" min="0" max="100" value="${values[index] ?? getDefaultTrainingValue(key, index)}" /></td>`).join("")}
+        </tr>
+      `).join("");
+    };
+
+    const adjustTrainingMonthCount = (delta) => {
+      const rows = Array.from(trainingTable.tBodies[0].rows);
+      const monthCount = rows[0]?.querySelectorAll('input').length || 0;
+      const nextCount = Math.max(1, monthCount + delta);
+      if (nextCount === monthCount) {
+        return;
+      }
+      const savedCurve = {
+        lowFit: Array.from(rows[0]?.querySelectorAll('input') || []).map((input) => input.value),
+        highFit: Array.from(rows[1]?.querySelectorAll('input') || []).map((input) => input.value),
+      };
+      savedCurve.lowFit = savedCurve.lowFit.slice(0, nextCount);
+      savedCurve.highFit = savedCurve.highFit.slice(0, nextCount);
+      while (savedCurve.lowFit.length < nextCount) {
+        savedCurve.lowFit.push(getDefaultTrainingValue('lowFit', savedCurve.lowFit.length));
+      }
+      while (savedCurve.highFit.length < nextCount) {
+        savedCurve.highFit.push(getDefaultTrainingValue('highFit', savedCurve.highFit.length));
+      }
+      buildTrainingTable(savedCurve);
+      bindInputs();
+      recompute();
+    };
 
     const formatNumber = (value, decimals = 0) => {
       if (!Number.isFinite(value)) {
@@ -1180,7 +1253,7 @@
                 .map(
                   (_, index) => `
                     <td class="${index === 0 ? "quarter-highlight" : ""}">
-                      <input class="internal-hiring-input" type="number" min="0" max="100" step="1" value="${row.values[index] ?? 0}" />
+                      <div class="percent-input"><input class="internal-hiring-input" type="number" min="0" max="100" step="1" value="${row.values[index] ?? 0}" /><span>%</span></div>
                     </td>
                   `
                 )
@@ -1199,10 +1272,11 @@
       }
 
       const availableWidth = Math.max(sectionBody.clientWidth - 16, 320);
-      const firstColumnWidth = Math.min(160, Math.max(110, Math.round(availableWidth * 0.18)));
+      const firstColumnWidth = Math.min(140, Math.max(88, Math.round(availableWidth * 0.16)));
       const remainingWidth = Math.max(availableWidth - firstColumnWidth, 180);
-      const dataColumnWidth = Math.min(90, Math.max(44, Math.floor(remainingWidth / Math.max(quarterCount, 1))));
-      const tableFontSize = dataColumnWidth < 52 ? 0.58 : dataColumnWidth < 60 ? 0.62 : 0.68;
+      const headerDrivenWidth = 58;
+      const dataColumnWidth = Math.min(64, Math.max(headerDrivenWidth, Math.floor(remainingWidth / Math.max(quarterCount, 1))));
+      const tableFontSize = dataColumnWidth < 60 ? 0.6 : 0.64;
 
       step2Section.style.setProperty("--step-2-first-column-width", `${firstColumnWidth}px`);
       step2Section.style.setProperty("--step-2-data-column-width", `${dataColumnWidth}px`);
@@ -1880,20 +1954,7 @@
       }
       buildQuarterlyRateTable(stored.quarterProducts || []);
       buildInternalHiringTable(parseTeams().map((team) => team.name), stored.quarterInternalHiring || {});
-      if (stored.trainingCurve) {
-        const lowFitInputs = trainingTable.tBodies[0].rows[0].querySelectorAll("input");
-        stored.trainingCurve.lowFit?.forEach((value, index) => {
-          if (lowFitInputs[index] && value !== undefined) {
-            lowFitInputs[index].value = value;
-          }
-        });
-        const highFitInputs = trainingTable.tBodies[0].rows[1].querySelectorAll("input");
-        stored.trainingCurve.highFit?.forEach((value, index) => {
-          if (highFitInputs[index] && value !== undefined) {
-            highFitInputs[index].value = value;
-          }
-        });
-      }
+      buildTrainingTable(stored.trainingCurve || DEFAULT_TRAINING_CURVE);
       if (stored.thresholds) {
         if (stored.thresholds.red !== undefined) {
           thresholdRedInput.value = stored.thresholds.red;
@@ -1938,12 +1999,7 @@
     };
 
     const updateStep2TableColumnWidths = () => {
-      const firstColumnWidth = 160;
-      const dataColumnCount = Math.max(quarterCount, 1);
-      const availableWidth = Math.max(window.innerWidth - 96 - firstColumnWidth, dataColumnCount * 90);
-      const dataColumnWidth = Math.max(90, availableWidth / dataColumnCount);
-      document.getElementById("step-2").style.setProperty("--step-2-first-column-width", `${firstColumnWidth}px`);
-      document.getElementById("step-2").style.setProperty("--step-2-data-column-width", `${dataColumnWidth}px`);
+      updateStep2Layout();
     };
 
     const bindInputs = () => {
@@ -2265,6 +2321,8 @@
     removeTeamButton.addEventListener("click", removeTeamRow);
     addQuarterButton.addEventListener("click", () => adjustQuarterCount(1));
     removeQuarterButton.addEventListener("click", () => adjustQuarterCount(-1));
+    addTrainingMonthButton.addEventListener("click", () => adjustTrainingMonthCount(1));
+    removeTrainingMonthButton.addEventListener("click", () => adjustTrainingMonthCount(-1));
     window.addEventListener("resize", updateStep2Layout);
     teamTable.addEventListener("paste", handleTeamTablePaste);
     teamTable.addEventListener("input", (event) => {
@@ -2290,6 +2348,7 @@
     ensureTeamRowCount(DEFAULT_TEAM_COUNT);
     buildQuarterlyRateTable(storedState?.quarterProducts || []);
     buildInternalHiringTable(parseTeams().map((team) => team.name), storedState?.quarterInternalHiring || {});
+    buildTrainingTable(storedState?.trainingCurve || DEFAULT_TRAINING_CURVE);
     bindSectionToggles();
     bindTableToggles();
     loadState(storedState);
