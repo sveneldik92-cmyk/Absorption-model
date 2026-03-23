@@ -6,10 +6,30 @@
   <title>Team Growth & Proficiency Visualizer</title>
   <style>
     :root {
-      color-scheme: light;
+      color-scheme: dark;
       font-family: "Inter", "Segoe UI", system-ui, sans-serif;
-      background: #f4f6fb;
-      color: #1c2430;
+      background: #0f172a;
+      color: #e2e8f0;
+      --page-bg: #0f172a;
+      --panel-bg: #111827;
+      --panel-muted: #1f2937;
+      --panel-soft: #0b1220;
+      --border: #334155;
+      --border-strong: #475569;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent: #818cf8;
+      --accent-soft: #312e81;
+      --sticky-bg: #0f172a;
+      --sticky-header-bg: #1e293b;
+      --quarter-highlight: #374151;
+      --quarter-highlight-text: #f8fafc;
+      --input-bg: #0b1220;
+      --input-border: #475569;
+      --badge-bg: #1e3a5f;
+      --badge-text: #bfdbfe;
+      --warning: #f59e0b;
+      --shadow: 0 14px 28px rgba(2, 6, 23, 0.45);
     }
 
     body {
@@ -18,6 +38,8 @@
       max-width: 1200px;
       margin-inline: auto;
       line-height: 1.5;
+      background: radial-gradient(circle at top, #172554 0%, var(--page-bg) 38%);
+      color: var(--text);
     }
 
     header {
@@ -31,14 +53,14 @@
 
     header p {
       max-width: 800px;
-      color: #4b5563;
+      color: var(--text-muted);
     }
 
     .section {
-      background: #ffffff;
+      background: var(--panel-bg);
       border-radius: 16px;
       padding: 24px;
-      box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+      box-shadow: var(--shadow);
       margin-bottom: 24px;
     }
 
@@ -55,21 +77,21 @@
     }
 
     .collapse-button {
-      border: 1px solid #d1d5db;
-      background: #f8fafc;
+      border: 1px solid var(--border);
+      background: var(--sticky-header-bg);
       border-radius: 999px;
       padding: 4px 12px;
       font-size: 0.8rem;
       cursor: pointer;
-      color: #1f2937;
+      color: var(--text);
     }
 
     .collapse-button:hover {
-      background: #eef2ff;
+      background: #312e81;
     }
 
     .section p {
-      color: #4b5563;
+      color: var(--text-muted);
       margin-top: 0;
     }
 
@@ -82,14 +104,14 @@
 
     th,
     td {
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--border);
       padding: 8px;
       text-align: center;
       font-size: 0.9rem;
     }
 
     th {
-      background: #f8fafc;
+      background: var(--sticky-header-bg);
       font-weight: 600;
     }
 
@@ -97,7 +119,7 @@
     input[type="text"],
     select {
       width: 100%;
-      border: 1px solid #d1d5db;
+      border: 1px solid var(--border);
       border-radius: 6px;
       padding: 4px 6px;
       font-size: 0.9rem;
@@ -123,10 +145,10 @@
     }
 
     .card {
-      background: #f8fafc;
+      background: var(--sticky-header-bg);
       border-radius: 12px;
       padding: 16px;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--border);
     }
 
     .meta {
@@ -143,16 +165,16 @@
       font-weight: 600;
       font-size: 0.85rem;
       gap: 4px;
-      color: #374151;
+      color: var(--text);
     }
 
     .note {
       font-size: 0.85rem;
-      color: #6b7280;
+      color: var(--text-muted);
     }
 
     .warning {
-      color: #b45309;
+      color: var(--warning);
       font-weight: 600;
     }
 
@@ -170,18 +192,18 @@
       display: inline-flex;
       padding: 4px 10px;
       border-radius: 999px;
-      background: #e0f2fe;
-      color: #0369a1;
+      background: var(--badge-bg);
+      color: var(--badge-text);
       font-size: 0.75rem;
       font-weight: 600;
     }
 
     .heat-low {
-      background: #fee2e2;
+      background: rgba(239, 68, 68, 0.18);
     }
 
     .heat-mid {
-      background: #fef3c7;
+      background: rgba(245, 158, 11, 0.18);
     }
 
     .heat-high {
@@ -190,9 +212,9 @@
 
     .chart-wrapper {
       padding: 16px;
-      border: 1px dashed #cbd5f5;
+      border: 1px dashed var(--border-strong);
       border-radius: 12px;
-      background: #f8fafc;
+      background: var(--sticky-header-bg);
     }
 
     .table-card {
@@ -217,9 +239,9 @@
     }
 
     .table-toggle-button {
-      border: 1px solid #cbd5f5;
-      background: #eef2ff;
-      color: #3730a3;
+      border: 1px solid var(--border-strong);
+      background: #312e81;
+      color: #c7d2fe;
       padding: 4px 12px;
       border-radius: 999px;
       font-size: 0.75rem;
@@ -228,12 +250,12 @@
     }
 
     .table-toggle-button:hover {
-      background: #e0e7ff;
+      background: #4338ca;
     }
 
     footer {
       margin-top: 40px;
-      color: #94a3b8;
+      color: var(--text-muted);
       font-size: 0.85rem;
       text-align: center;
     }
@@ -246,9 +268,9 @@
     }
 
     .section-actions button {
-      border: 1px solid #cbd5f5;
-      background: #eef2ff;
-      color: #3730a3;
+      border: 1px solid var(--border-strong);
+      background: #312e81;
+      color: #c7d2fe;
       padding: 6px 12px;
       border-radius: 8px;
       font-size: 0.85rem;
@@ -257,7 +279,7 @@
     }
 
     .section-actions button:hover {
-      background: #e0e7ff;
+      background: #4338ca;
     }
 
     .section-actions input[type="file"] {
@@ -265,7 +287,7 @@
     }
 
     .subtle {
-      color: #64748b;
+      color: var(--text-muted);
       font-size: 0.8rem;
       font-weight: 500;
     }
@@ -333,14 +355,14 @@
       position: sticky;
       left: 0;
       z-index: 2;
-      background: #ffffff;
+      background: var(--sticky-bg);
       min-width: 160px;
-      box-shadow: 2px 0 0 #e5e7eb;
+      box-shadow: 2px 0 0 var(--border);
     }
 
     .compact-table thead th:first-child {
       z-index: 3;
-      background: #f8fafc;
+      background: var(--sticky-header-bg);
     }
 
     .compact-table input[type="number"],
@@ -437,8 +459,7 @@
 
     #internal-hiring-table td:first-child,
     #internal-hiring-table th:first-child {
-      background: #e5e7eb;
-      color: #6b7280;
+      color: var(--text);
     }
 
     #step-4 .compact-table th,
@@ -470,6 +491,44 @@
       max-width: calc(100% - 16px);
       margin: 0 auto;
       padding: 0 8px;
+    }
+
+
+    .unified-quarter-table th,
+    .unified-quarter-table td {
+      background: var(--panel-bg);
+    }
+
+    .unified-quarter-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+    }
+
+    .unified-quarter-table .quarter-highlight {
+      background: var(--quarter-highlight) !important;
+      color: var(--quarter-highlight-text);
+    }
+
+    .unified-quarter-table .quarter-highlight input {
+      background: rgba(15, 23, 42, 0.55);
+      color: var(--quarter-highlight-text);
+      border-color: rgba(148, 163, 184, 0.45);
+    }
+
+    input[type="number"],
+    input[type="text"],
+    select {
+      background: var(--input-bg);
+      color: var(--text);
+    }
+
+    input[type="file"] {
+      color: var(--text-muted);
+    }
+
+    canvas {
+      filter: saturate(0.95) brightness(0.95);
     }
 
     @media (max-width: 900px) {
@@ -618,13 +677,7 @@
         <button type="button" id="remove-quarter">Remove quarter</button>
       </div>
       <div class="table-scroll">
-        <table id="monthly-products-table" class="compact-table">
-          <thead></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="table-scroll">
-        <table id="internal-hiring-table" class="compact-table proficiency-table">
+        <table id="internal-hiring-table" class="compact-table proficiency-table unified-quarter-table">
           <thead></thead>
           <tbody></tbody>
         </table>
@@ -906,6 +959,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
+    Chart.defaults.color = "#cbd5e1";
+    Chart.defaults.borderColor = "rgba(71, 85, 105, 0.45)";
+    Chart.defaults.font.family = "\"Inter\", \"Segoe UI\", system-ui, sans-serif";
+
     const generateMonthLabels = (startYear, endYear) => {
       const labels = [];
       const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -932,7 +989,6 @@
 
     const teamTable = document.getElementById("team-table");
     const trainingTable = document.getElementById("training-table");
-    const monthlyProductsBody = document.querySelector("#monthly-products-table tbody");
     const internalHiringHead = document.querySelector("#internal-hiring-table thead");
     const internalHiringBody = document.querySelector("#internal-hiring-table tbody");
     const totalHires = document.getElementById("total-hires");
@@ -1010,25 +1066,27 @@
       });
     };
 
-    const buildQuarterProductsTable = (savedRates = []) => {
-      const body = monthlyProductsBody;
-      const head = document.querySelector("#monthly-products-table thead");
+    const buildInternalHiringTable = (teamNames, savedInternalHiring = {}, savedRates = []) => {
       const quarterLabels = getQuarterLabels();
       const defaultRates = quarterLabels.map((_, index) => (index < 4 ? 6 : index < 8 ? 7 : 8));
       const rates = savedRates.length === quarterLabels.length ? savedRates : defaultRates.slice(0, quarterLabels.length);
-      head.innerHTML = `
+
+      internalHiringHead.innerHTML = `
         <tr>
           <th>Time period</th>
-          ${quarterLabels.map((label) => `<th>${label}</th>`).join("")}
+          ${quarterLabels
+            .map((label, index) => `<th class="${index === 0 ? "quarter-highlight" : ""}">${label}</th>`)
+            .join("")}
         </tr>
       `;
-      body.innerHTML = `
+
+      const rateRow = `
         <tr>
           <td class="subtle">Rate</td>
           ${rates
             .map(
-              (value) => `
-                <td>
+              (value, index) => `
+                <td class="${index === 0 ? "quarter-highlight" : ""}">
                   <input class="monthly-product-input" type="number" min="0" step="0.1" value="${value}" />
                 </td>
               `
@@ -1036,37 +1094,36 @@
             .join("")}
         </tr>
       `;
-    };
 
-    const buildInternalHiringTable = (teamNames, savedInternalHiring = {}) => {
-      const quarterLabels = getQuarterLabels();
-      internalHiringHead.innerHTML = `
-        <tr>
-          <th aria-label="Team"></th>
-          ${quarterLabels.map((label) => `<th>${label}</th>`).join("")}
-        </tr>
-      `;
-      internalHiringBody.innerHTML = teamNames.map((teamName) => {
-        const values = Array.isArray(savedInternalHiring?.[teamName]) ? savedInternalHiring[teamName] : [];
-        return `
-          <tr>
-            <td>${teamName || "Team"}</td>
-            ${quarterLabels.map((_, index) => `
-              <td>
-                <input
-                  class="internal-hiring-input"
-                  data-team="${String(teamName || "Team").replace(/"/g, '&quot;')}"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value="${values[index] ?? 0}"
-                />
-              </td>
-            `).join("")}
-          </tr>
-        `;
-      }).join("");
+      const teamRows = teamNames
+        .map((teamName) => {
+          const values = Array.isArray(savedInternalHiring?.[teamName]) ? savedInternalHiring[teamName] : [];
+          return `
+            <tr>
+              <td>${teamName || "Team"}</td>
+              ${quarterLabels
+                .map(
+                  (_, index) => `
+                    <td class="${index === 0 ? "quarter-highlight" : ""}">
+                      <input
+                        class="internal-hiring-input"
+                        data-team="${String(teamName || "Team").replace(/"/g, "&quot;")}"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value="${values[index] ?? 0}"
+                      />
+                    </td>
+                  `
+                )
+                .join("")}
+            </tr>
+          `;
+        })
+        .join("");
+
+      internalHiringBody.innerHTML = `${rateRow}${teamRows}`;
     };
 
     const parseTeams = () => {
@@ -1086,12 +1143,14 @@
     };
 
     const parseQuarterProducts = () =>
-      Array.from(monthlyProductsBody.querySelectorAll(".monthly-product-input")).map(
+      Array.from(internalHiringBody.querySelectorAll(".monthly-product-input")).map(
         (input) => Number(input.value) || 0
       );
 
     const parseQuarterInternalHiring = () =>
-      Array.from(internalHiringBody.querySelectorAll("tr")).reduce((accumulator, row) => {
+      Array.from(internalHiringBody.querySelectorAll("tr"))
+        .slice(1)
+        .reduce((accumulator, row) => {
         const teamName = row.cells[0]?.textContent?.trim() || "Team";
         accumulator[teamName] = Array.from(row.querySelectorAll(".internal-hiring-input")).map(
           (input) => Number(input.value) || 0
@@ -1742,17 +1801,12 @@
       }
       if (Number.isInteger(stored.quarterCount) && stored.quarterCount > 0) {
         quarterCount = stored.quarterCount;
-        buildQuarterProductsTable(stored.quarterProducts || []);
       }
-      if (Array.isArray(stored.quarterProducts)) {
-        const monthlyInputs = monthlyProductsBody.querySelectorAll(".monthly-product-input");
-        stored.quarterProducts.forEach((value, index) => {
-          if (monthlyInputs[index] && value !== undefined) {
-            monthlyInputs[index].value = value;
-          }
-        });
-      }
-      buildInternalHiringTable(parseTeams().map((team) => team.name), stored.quarterInternalHiring || {});
+      buildInternalHiringTable(
+        parseTeams().map((team) => team.name),
+        stored.quarterInternalHiring || {},
+        stored.quarterProducts || []
+      );
       if (stored.trainingCurve) {
         const lowFitInputs = trainingTable.tBodies[0].rows[0].querySelectorAll("input");
         stored.trainingCurve.lowFit?.forEach((value, index) => {
@@ -1799,7 +1853,7 @@
     const syncInternalHiringTeamNames = () => {
       const teamNames = parseTeams().map((team) => team.name || "Team");
       const storedValues = parseQuarterInternalHiring();
-      buildInternalHiringTable(teamNames, storedValues);
+      buildInternalHiringTable(teamNames, storedValues, parseQuarterProducts());
       bindInputs();
     };
 
@@ -2098,13 +2152,21 @@
       quarterCount = Math.max(1, quarterCount + delta);
       const storedRates = parseQuarterProducts();
       const storedInternalHiring = parseQuarterInternalHiring();
-      buildQuarterProductsTable(storedRates.slice(0, quarterCount).concat(Array(Math.max(quarterCount - storedRates.length, 0)).fill(storedRates[storedRates.length - 1] ?? 0)));
-      buildInternalHiringTable(parseTeams().map((team) => team.name), Object.fromEntries(
-        Object.entries(storedInternalHiring).map(([teamName, values]) => [
-          teamName,
-          values.slice(0, quarterCount).concat(Array(Math.max(quarterCount - values.length, 0)).fill(values[values.length - 1] ?? 0)),
-        ])
-      ));
+      const resizedRates = storedRates
+        .slice(0, quarterCount)
+        .concat(Array(Math.max(quarterCount - storedRates.length, 0)).fill(storedRates[storedRates.length - 1] ?? 0));
+      buildInternalHiringTable(
+        parseTeams().map((team) => team.name),
+        Object.fromEntries(
+          Object.entries(storedInternalHiring).map(([teamName, values]) => [
+            teamName,
+            values
+              .slice(0, quarterCount)
+              .concat(Array(Math.max(quarterCount - values.length, 0)).fill(values[values.length - 1] ?? 0)),
+          ])
+        ),
+        resizedRates
+      );
       bindInputs();
       recompute();
     };
@@ -2141,9 +2203,12 @@
     if (Number.isInteger(storedState?.quarterCount) && storedState.quarterCount > 0) {
       quarterCount = storedState.quarterCount;
     }
-    buildQuarterProductsTable(storedState?.quarterProducts);
     ensureTeamRowCount(3);
-    buildInternalHiringTable(parseTeams().map((team) => team.name), storedState?.quarterInternalHiring || {});
+    buildInternalHiringTable(
+      parseTeams().map((team) => team.name),
+      storedState?.quarterInternalHiring || {},
+      storedState?.quarterProducts || []
+    );
     bindSectionToggles();
     bindTableToggles();
     loadState(storedState);
