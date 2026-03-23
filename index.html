@@ -765,6 +765,24 @@
     </div>
   </section>
 
+  <section class="section" id="step-4b">
+    <div class="section-header">
+      <h2>4b. Actual Headcount by Team &amp; Quarter</h2>
+      <button class="collapse-button" type="button" data-target="step-4b">Collapse</button>
+    </div>
+    <div class="section-body">
+      <p>
+        Optionally override the modelled team size with the actual in-team headcount per quarter. Trainer counts use this as a ceiling; blank cells fall back to the modelled headcount.
+      </p>
+      <div class="table-scroll">
+        <table id="actual-headcount-table" class="compact-table proficiency-table unified-quarter-table">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
   <section class="section" id="step-5">
     <div class="section-header">
       <h2>5. Team Proficiency Over Time</h2>
@@ -805,6 +823,10 @@
             Experience band upper (months)
             <input type="number" id="experience-band-upper" min="0" step="1" value="12" />
           </label>
+          <label>
+            Max trainees per trainer
+            <input type="number" id="max-trainees-per-trainer" min="0" step="0.1" value="3" />
+          </label>
         </div>
         <div class="meta-row">
           <label class="toggle">
@@ -827,12 +849,12 @@
   <section class="section" id="step-6">
     <div class="section-header">
       <h2>6. How Table 5 Is Calculated (Deep Dive)</h2>
-      <button class="collapse-button" type="button" data-target="step-5">Collapse</button>
+      <button class="collapse-button" type="button" data-target="step-6">Collapse</button>
     </div>
     <div class="section-body">
       <p>
         Table 5 shows the percentage of each team that is fully productive in every month from Jan 2026 through
-        Dec 2028. The model builds that value in stages, using the inputs in Sections 1–4.
+        Dec 2028. The model builds that value in stages, using the inputs in Sections 1–4b.
       </p>
       <ol>
         <li>
@@ -872,6 +894,9 @@
             <em>Proficiency % = effective capacity ÷ total headcount</em>
           </div>
           The conditional formatting thresholds in Section 5 (red/orange) are then applied to these percentages.
+        </li>
+        <li>
+          <strong>Classify trainers.</strong> A trainer is someone already in the team before the timeline starts, or a hire cohort that has reached 100% proficiency. The actual headcount entered in Section 4b caps how many trainers can be present in the team, and the trainer/trainee ratio input in Section 5 shows the expected trainee coverage per trainer.
         </li>
       </ol>
     </div>
@@ -929,6 +954,12 @@
         tableId: "newness-table",
         chartId: "newness-chart",
         canvasId: "newness-canvas",
+      },
+      {
+        title: "Trainers in team (absolute)",
+        note: "Eligible trainers are teammates who were already in the team before the timeline start or hire cohorts that have reached 100% proficiency; actual headcount caps the trainer total.",
+        bodyId: "trainer-body",
+        tableId: "trainer-table",
       },
       {
         title: "Team members within experience band (absolute)",
@@ -1025,6 +1056,8 @@
     const quarterlyRateBody = document.querySelector("#quarterly-rate-table tbody");
     const internalHiringHead = document.querySelector("#internal-hiring-table thead");
     const internalHiringBody = document.querySelector("#internal-hiring-table tbody");
+    const actualHeadcountHead = document.querySelector("#actual-headcount-table thead");
+    const actualHeadcountBody = document.querySelector("#actual-headcount-table tbody");
     const totalHires = document.getElementById("total-hires");
     const peakHeadcount = document.getElementById("peak-headcount");
     const yearEnd = document.getElementById("year-end");
@@ -1035,12 +1068,14 @@
     const newHireThresholdOrangeInput = document.getElementById("new-hire-threshold-orange");
     const experienceBandLowerInput = document.getElementById("experience-band-lower");
     const experienceBandUpperInput = document.getElementById("experience-band-upper");
+    const maxTraineesPerTrainerInput = document.getElementById("max-trainees-per-trainer");
     const viewToggle = document.getElementById("view-toggle");
     const timeColumnToggle = document.getElementById("time-column-toggle");
     const teamSizeTable = document.getElementById("team-size-table");
     const budgetChangeTable = document.getElementById("budget-change-table");
     const untrainedVsTrainedTable = document.getElementById("untrained-vs-trained-table");
     const newnessTable = document.getElementById("newness-table");
+    const trainerTable = document.getElementById("trainer-table");
     const experienceBandTable = document.getElementById("experience-band-table");
     const proficiencyTable = document.getElementById("proficiency-table");
     const proficiencyChart = document.getElementById("proficiency-chart");
@@ -1218,6 +1253,58 @@
       `;
     };
 
+    const normalizeActualHeadcountRows = (teamNames, savedActualHeadcount = {}) => {
+      const quarterLabels = getQuarterLabels();
+      return teamNames.map((teamName, teamIndex) => {
+        const legacyValues = Array.isArray(savedActualHeadcount?.[teamName]) ? savedActualHeadcount[teamName] : null;
+        const indexedValues = Array.isArray(savedActualHeadcount?.rows?.[teamIndex]?.values)
+          ? savedActualHeadcount.rows[teamIndex].values
+          : null;
+        const sourceValues = legacyValues || indexedValues || [];
+        return {
+          name: teamName || `Team ${teamIndex + 1}`,
+          values: quarterLabels.map((_, quarterIndex) => {
+            const raw = sourceValues[quarterIndex];
+            return raw === "" || raw === null || raw === undefined ? "" : (Number(raw) || 0);
+          }),
+        };
+      });
+    };
+
+    const buildActualHeadcountTable = (teamNames, savedActualHeadcount = {}) => {
+      const quarterLabels = getQuarterLabels();
+      const rows = normalizeActualHeadcountRows(teamNames, savedActualHeadcount);
+
+      actualHeadcountHead.innerHTML = `
+        <tr>
+          <th>Team</th>
+          ${quarterLabels
+            .map((label, index) => `<th class="${index === 0 ? "quarter-highlight" : ""}">${label}</th>`)
+            .join("")}
+        </tr>
+      `;
+
+      actualHeadcountBody.innerHTML = rows
+        .map(
+          (row) => `
+            <tr>
+              <td>${row.name}</td>
+              ${quarterLabels
+                .map(
+                  (_, index) => `
+                    <td class="${index === 0 ? "quarter-highlight" : ""}">
+                      <input class="actual-headcount-input" type="number" min="0" step="1" value="${row.values[index]}" placeholder="Auto" />
+                    </td>
+                  `
+                )
+                .join("")}
+            </tr>
+          `
+        )
+        .join("");
+      updateStep2Layout();
+    };
+
     const buildInternalHiringTable = (teamNames, savedInternalHiring = {}) => {
       const quarterLabels = getQuarterLabels();
       const rows = normalizeInternalHiringRows(teamNames, savedInternalHiring);
@@ -1293,6 +1380,13 @@
       rows: Array.from(internalHiringBody.querySelectorAll("tr")).map((row, index) => ({
         name: row.cells[0]?.textContent?.trim() || `Team ${index + 1}`,
         values: Array.from(row.querySelectorAll(".internal-hiring-input")).map((input) => Number(input.value) || 0),
+      })),
+    });
+
+    const parseActualHeadcount = () => ({
+      rows: Array.from(actualHeadcountBody.querySelectorAll("tr")).map((row, index) => ({
+        name: row.cells[0]?.textContent?.trim() || `Team ${index + 1}`,
+        values: Array.from(row.querySelectorAll(".actual-headcount-input")).map((input) => input.value),
       })),
     });
 
@@ -1418,6 +1512,69 @@
             }
             return newnessMonthly[index] / trained;
           }),
+        };
+      });
+
+    const expandActualHeadcountToMonthly = (parsedActualHeadcount, staffedTeams) => {
+      const fallbackByTeam = Object.fromEntries(
+        staffedTeams.map((team) => [team.name, aggregateQuarterValues(team.totalMonthlyHeadcount)])
+      );
+      return Object.fromEntries(
+        parsedActualHeadcount.rows.map((row) => {
+          const fallbackQuarterValues = fallbackByTeam[row.name] || [];
+          const quarterValues = getQuarterLabels().map((_, index) => {
+            const raw = row.values[index];
+            if (raw === "" || raw === null || raw === undefined) {
+              return fallbackQuarterValues[index] ?? null;
+            }
+            const parsed = Number(raw);
+            return Number.isFinite(parsed) ? parsed : fallbackQuarterValues[index] ?? null;
+          });
+          return [row.name, expandQuarterRatesToMonthly(quarterValues)];
+        })
+      );
+    };
+
+    const computeTrainerTimeline = (teams, trainingCurve, internalHiringMonthlyByTeam, actualHeadcountMonthlyByTeam, maxTraineesPerTrainer) =>
+      teams.map((team) => {
+        const trainerMonthly = [];
+        const trainerCoverageMonthly = [];
+
+        for (let monthIndex = 0; monthIndex < getMonthLabels().length; monthIndex += 1) {
+          let eligibleTrainers = team.current;
+          let trainees = 0;
+          const internalHiringMonthly = internalHiringMonthlyByTeam[team.name] || [];
+          for (let hireMonth = 0; hireMonth <= monthIndex; hireMonth += 1) {
+            const hires = team.hiresMonthly[hireMonth] || 0;
+            const trainingIndex = monthIndex - hireMonth;
+            const highFitShare = Math.min(Math.max(internalHiringMonthly[hireMonth] ?? 0, 0), 100) / 100;
+            const highFitHires = hires * highFitShare;
+            const lowFitHires = hires - highFitHires;
+            const highFitRate = trainingCurve.highFit[trainingIndex] ?? 1;
+            const lowFitRate = trainingCurve.lowFit[trainingIndex] ?? 1;
+            if (highFitRate >= 1) {
+              eligibleTrainers += highFitHires;
+            } else {
+              trainees += highFitHires;
+            }
+            if (lowFitRate >= 1) {
+              eligibleTrainers += lowFitHires;
+            } else {
+              trainees += lowFitHires;
+            }
+          }
+          const actualHeadcount = actualHeadcountMonthlyByTeam[team.name]?.[monthIndex];
+          const cappedTrainers = Number.isFinite(actualHeadcount)
+            ? Math.min(eligibleTrainers, actualHeadcount)
+            : eligibleTrainers;
+          trainerMonthly.push(cappedTrainers);
+          trainerCoverageMonthly.push(maxTraineesPerTrainer > 0 ? cappedTrainers * maxTraineesPerTrainer : null);
+        }
+
+        return {
+          ...team,
+          trainerMonthly,
+          trainerCoverageMonthly,
         };
       });
 
@@ -1599,6 +1756,37 @@
       });
 
       newnessTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+    };
+
+    const renderTrainerTable = (teams, quarterRates, maxTraineesPerTrainer) => {
+      const labels = getTimeLabels(quarterRates);
+      const header = `
+        <table class="proficiency-table compact-table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      const bodyRows = teams.map((team) => {
+        const cells = getTimeSeries(team.trainerMonthly).map((value, index) => {
+          if (!Number.isFinite(value)) {
+            return "<td>-</td>";
+          }
+          const coverageValues = getTimeSeries(team.trainerCoverageMonthly);
+          const coverage = coverageValues[index];
+          const coverageText = Number.isFinite(coverage) && maxTraineesPerTrainer > 0
+            ? `<div class="subtle">covers ${formatNumber(coverage, 1)}</div>`
+            : "";
+          return `<td>${formatNumber(value, 1)}${coverageText}</td>`;
+        });
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
+      });
+
+      trainerTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
     };
 
     const renderExperienceBandTable = (teams, quarterRates) => {
@@ -1807,7 +1995,7 @@
 
     const updateViewToggle = () => {
       const isChart = viewToggle.value === "chart";
-      [teamSizeTable, newnessTable, experienceBandTable, proficiencyTable, budgetChangeTable, untrainedVsTrainedTable].forEach((table) => {
+      [teamSizeTable, newnessTable, trainerTable, experienceBandTable, proficiencyTable, budgetChangeTable, untrainedVsTrainedTable].forEach((table) => {
         table.classList.toggle("hidden", isChart);
       });
       [teamSizeChart, newnessChart, proficiencyChart, budgetChangeChart, untrainedVsTrainedChart].forEach((chart) => {
@@ -1827,6 +2015,7 @@
       const productLevels = getProductLevels();
       const quarterProducts = parseQuarterProducts();
       const quarterInternalHiring = parseQuarterInternalHiring();
+      const actualHeadcount = parseActualHeadcount();
       updateQuarterBalance(quarterProducts);
       const monthlyProducts = expandQuarterRatesToMonthly(quarterProducts);
       const monthlyInternalHiring = expandInternalHiringToMonthly(getQuarterInternalHiringByName(quarterInternalHiring));
@@ -1836,10 +2025,19 @@
 
       const trainingCurve = parseTrainingCurve();
       const proficiencyTeams = computeProficiencyTimeline(staffedTeams, trainingCurve, monthlyInternalHiring);
+      const maxTraineesPerTrainer = Number(maxTraineesPerTrainerInput.value) || 0;
+      const actualHeadcountMonthly = expandActualHeadcountToMonthly(actualHeadcount, staffedTeams);
+      const teamsWithTrainers = computeTrainerTimeline(
+        proficiencyTeams,
+        trainingCurve,
+        monthlyInternalHiring,
+        actualHeadcountMonthly,
+        maxTraineesPerTrainer
+      );
       const experienceBandLower = Number(experienceBandLowerInput.value) || 0;
       const experienceBandUpper = Number(experienceBandUpperInput.value) || 0;
       const teamsWithExperienceBand = computeExperienceBandMonthly(
-        proficiencyTeams,
+        teamsWithTrainers,
         experienceBandLower,
         experienceBandUpper
       );
@@ -1853,6 +2051,7 @@
       renderBudgetChangeTable(teamsWithExperienceBand, newHireRedThreshold, newHireOrangeThreshold, quarterProducts);
       renderUntrainedVsTrainedTable(teamsWithExperienceBand, newHireRedThreshold, newHireOrangeThreshold, quarterProducts);
       renderNewnessTable(teamsWithExperienceBand, quarterProducts);
+      renderTrainerTable(teamsWithExperienceBand, quarterProducts, maxTraineesPerTrainer);
       renderExperienceBandTable(teamsWithExperienceBand, quarterProducts);
       renderProficiencyTable(teamsWithExperienceBand, redThreshold, orangeThreshold, quarterProducts);
       renderCharts(teamsWithExperienceBand, quarterProducts);
@@ -1870,6 +2069,7 @@
         quarterCount,
         quarterProducts: parseQuarterProducts(),
         quarterInternalHiring: parseQuarterInternalHiring(),
+        actualHeadcount: parseActualHeadcount(),
         trainingCurve: {
           lowFit: Array.from(trainingTable.tBodies[0].rows[0].querySelectorAll("input")).map(
             (input) => input.value
@@ -1885,6 +2085,7 @@
           newHireOrange: newHireThresholdOrangeInput.value,
           experienceBandLower: experienceBandLowerInput.value,
           experienceBandUpper: experienceBandUpperInput.value,
+          maxTraineesPerTrainer: maxTraineesPerTrainerInput.value,
         },
         view: viewToggle.value,
         timeColumnView,
@@ -1949,6 +2150,7 @@
       }
       buildQuarterlyRateTable(stored.quarterProducts || []);
       buildInternalHiringTable(parseTeams().map((team) => team.name), stored.quarterInternalHiring || {});
+      buildActualHeadcountTable(parseTeams().map((team) => team.name), stored.actualHeadcount || {});
       buildTrainingTable(stored.trainingCurve || DEFAULT_TRAINING_CURVE);
       if (stored.thresholds) {
         if (stored.thresholds.red !== undefined) {
@@ -1969,6 +2171,9 @@
         if (stored.thresholds.experienceBandUpper !== undefined) {
           experienceBandUpperInput.value = stored.thresholds.experienceBandUpper;
         }
+        if (stored.thresholds.maxTraineesPerTrainer !== undefined) {
+          maxTraineesPerTrainerInput.value = stored.thresholds.maxTraineesPerTrainer;
+        }
       }
       if (stored.view) {
         viewToggle.value = stored.view;
@@ -1982,7 +2187,9 @@
     const syncInternalHiringTeamNames = () => {
       const teamNames = parseTeams().map((team) => team.name || "Team");
       const storedValues = parseQuarterInternalHiring();
+      const storedActualHeadcount = parseActualHeadcount();
       buildInternalHiringTable(teamNames, storedValues);
+      buildActualHeadcountTable(teamNames, storedActualHeadcount);
       bindInputs();
     };
 
@@ -2308,8 +2515,18 @@
             .concat(Array(Math.max(quarterCount - row.values.length, 0)).fill(row.values[row.values.length - 1] ?? 0)),
         })),
       };
+      const storedActualHeadcount = parseActualHeadcount();
+      const resizedActualHeadcount = {
+        rows: storedActualHeadcount.rows.map((row) => ({
+          name: row.name,
+          values: row.values
+            .slice(0, quarterCount)
+            .concat(Array(Math.max(quarterCount - row.values.length, 0)).fill(row.values[row.values.length - 1] ?? "")),
+        })),
+      };
       buildQuarterlyRateTable(resizedRates);
       buildInternalHiringTable(parseTeams().map((team) => team.name), resizedInternalHiring);
+      buildActualHeadcountTable(parseTeams().map((team) => team.name), resizedActualHeadcount);
       bindInputs();
       recompute();
     };
@@ -2356,6 +2573,7 @@
     ensureTeamRowCount(DEFAULT_TEAM_COUNT);
     buildQuarterlyRateTable(storedState?.quarterProducts || []);
     buildInternalHiringTable(parseTeams().map((team) => team.name), storedState?.quarterInternalHiring || {});
+    buildActualHeadcountTable(parseTeams().map((team) => team.name), storedState?.actualHeadcount || {});
     buildTrainingTable(storedState?.trainingCurve || DEFAULT_TRAINING_CURVE);
     bindSectionToggles();
     bindTableToggles();
