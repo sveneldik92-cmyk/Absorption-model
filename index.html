@@ -435,26 +435,35 @@
     }
 
     #step-2 {
-      --step-2-first-column-width: 160px;
-      --step-2-data-column-width: 90px;
+      --step-2-first-column-width: 132px;
+      --step-2-data-column-width: 72px;
+      --step-2-table-font-size: 0.68rem;
     }
 
     #step-2 .compact-table {
       width: 100%;
       min-width: 100%;
       table-layout: fixed;
+      font-size: var(--step-2-table-font-size);
     }
 
     #step-2 .compact-table th,
     #step-2 .compact-table td {
       min-width: var(--step-2-data-column-width);
       width: var(--step-2-data-column-width);
+      padding: 2px;
+      font-size: inherit;
     }
 
     #step-2 .compact-table th:first-child,
     #step-2 .compact-table td:first-child {
       min-width: var(--step-2-first-column-width);
       width: var(--step-2-first-column-width);
+    }
+
+    #step-2 .compact-table input[type="number"] {
+      font-size: inherit;
+      text-align: center;
     }
 
     #internal-hiring-table td:first-child,
@@ -1124,6 +1133,24 @@
         .join("");
 
       internalHiringBody.innerHTML = `${rateRow}${teamRows}`;
+      updateStep2Layout();
+    };
+
+    const updateStep2Layout = () => {
+      const sectionBody = document.querySelector("#step-2 .section-body");
+      if (!sectionBody) {
+        return;
+      }
+
+      const availableWidth = Math.max(sectionBody.clientWidth - 16, 320);
+      const firstColumnWidth = Math.min(160, Math.max(110, Math.round(availableWidth * 0.18)));
+      const remainingWidth = Math.max(availableWidth - firstColumnWidth, 180);
+      const dataColumnWidth = Math.min(90, Math.max(44, Math.floor(remainingWidth / Math.max(quarterCount, 1))));
+      const tableFontSize = dataColumnWidth < 52 ? 0.58 : dataColumnWidth < 60 ? 0.62 : 0.68;
+
+      step2Section.style.setProperty("--step-2-first-column-width", `${firstColumnWidth}px`);
+      step2Section.style.setProperty("--step-2-data-column-width", `${dataColumnWidth}px`);
+      step2Section.style.setProperty("--step-2-table-font-size", `${tableFontSize}rem`);
     };
 
     const parseTeams = () => {
@@ -2185,6 +2212,7 @@
     removeTeamButton.addEventListener("click", removeTeamRow);
     addQuarterButton.addEventListener("click", () => adjustQuarterCount(1));
     removeQuarterButton.addEventListener("click", () => adjustQuarterCount(-1));
+    window.addEventListener("resize", updateStep2Layout);
     teamTable.addEventListener("paste", handleTeamTablePaste);
     teamTable.addEventListener("input", (event) => {
       const target = event.target;
