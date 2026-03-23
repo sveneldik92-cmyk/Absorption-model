@@ -661,80 +661,7 @@
         Capture current headcount plus the staffing required at specific product levels. Product levels are shared
         across every team, while staffing can be non-linear by level.
       </p>
-      <table id="team-table">
-        <thead>
-          <tr>
-            <th>Team</th>
-            <th>
-              Staffing for
-              <div class="subtle">Products / Quarter</div>
-              <input class="product-level-input" type="number" min="0" step="1" value="2" />
-            </th>
-            <th>
-              Staffing for
-              <div class="subtle">Products / Quarter</div>
-              <input class="product-level-input" type="number" min="0" step="1" value="4" />
-            </th>
-            <th>
-              Staffing for
-              <div class="subtle">Products / Quarter</div>
-              <input class="product-level-input" type="number" min="0" step="1" value="6" />
-            </th>
-            <th>
-              Staffing for
-              <div class="subtle">Products / Quarter</div>
-              <input class="product-level-input" type="number" min="0" step="1" value="8" />
-            </th>
-            <th>
-              Staffing for
-              <div class="subtle">Products / Quarter</div>
-              <input class="product-level-input" type="number" min="0" step="1" value="10" />
-            </th>
-            <th>
-              Staffing for
-              <div class="subtle">Products / Quarter</div>
-              <input class="product-level-input" type="number" min="0" step="1" value="12" />
-            </th>
-            <th>
-              Staffing for
-              <div class="subtle">Products / Quarter</div>
-              <input class="product-level-input" type="number" min="0" step="1" value="14" />
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><input type="text" value="Core Platform" /></td>
-            <td><input type="number" min="0" step="1" value="22" /></td>
-            <td><input type="number" min="0" step="1" value="28" /></td>
-            <td><input type="number" min="0" step="1" value="36" /></td>
-            <td><input type="number" min="0" step="1" value="44" /></td>
-            <td><input type="number" min="0" step="1" value="52" /></td>
-            <td><input type="number" min="0" step="1" value="60" /></td>
-            <td><input type="number" min="0" step="1" value="68" /></td>
-          </tr>
-          <tr>
-            <td><input type="text" value="Data Systems" /></td>
-            <td><input type="number" min="0" step="1" value="15" /></td>
-            <td><input type="number" min="0" step="1" value="19" /></td>
-            <td><input type="number" min="0" step="1" value="24" /></td>
-            <td><input type="number" min="0" step="1" value="30" /></td>
-            <td><input type="number" min="0" step="1" value="36" /></td>
-            <td><input type="number" min="0" step="1" value="42" /></td>
-            <td><input type="number" min="0" step="1" value="48" /></td>
-          </tr>
-          <tr>
-            <td><input type="text" value="Client Success" /></td>
-            <td><input type="number" min="0" step="1" value="18" /></td>
-            <td><input type="number" min="0" step="1" value="23" /></td>
-            <td><input type="number" min="0" step="1" value="29" /></td>
-            <td><input type="number" min="0" step="1" value="36" /></td>
-            <td><input type="number" min="0" step="1" value="43" /></td>
-            <td><input type="number" min="0" step="1" value="50" /></td>
-            <td><input type="number" min="0" step="1" value="57" /></td>
-          </tr>
-        </tbody>
-      </table>
+      <table id="team-table"></table>
       <div class="section-actions">
         <button type="button" id="export-csv">Export CSV</button>
         <button type="button" id="import-csv">Import CSV</button>
@@ -893,101 +820,7 @@
           </div>
         </div>
       </div>
-      <div class="card table-card" style="margin-top: 16px;">
-        <div class="table-card-header">
-          <div>
-            <h3>Team size over time</h3>
-            <div class="note">Monthly total headcount by team.</div>
-          </div>
-          <button class="table-toggle-button" type="button" data-target="team-size-body">Collapse</button>
-        </div>
-        <div class="table-card-body" id="team-size-body">
-          <div class="table-scroll" id="team-size-table"></div>
-          <div id="team-size-chart" class="hidden chart-wrapper">
-            <canvas id="team-size-canvas" height="120"></canvas>
-          </div>
-        </div>
-      </div>
-      <div class="card table-card">
-        <div class="table-card-header">
-          <div>
-            <h3>Training-adjusted new team members</h3>
-            <div class="note">
-              New hires multiplied by the inverse of their training curve (e.g., 20% proficiency = 80% new).
-            </div>
-          </div>
-          <button class="table-toggle-button" type="button" data-target="newness-body">Collapse</button>
-        </div>
-        <div class="table-card-body" id="newness-body">
-          <div class="table-scroll" id="newness-table"></div>
-          <div id="newness-chart" class="hidden chart-wrapper">
-            <canvas id="newness-canvas" height="120"></canvas>
-          </div>
-        </div>
-      </div>
-      <div class="card table-card">
-        <div class="table-card-header">
-          <div>
-            <h3>Team members within experience band (absolute)</h3>
-            <div class="note">
-              Counts people hired within the selected lower/upper month range (inclusive).
-            </div>
-          </div>
-          <button class="table-toggle-button" type="button" data-target="experience-band-body">Collapse</button>
-        </div>
-        <div class="table-card-body" id="experience-band-body">
-          <div class="table-scroll" id="experience-band-table"></div>
-        </div>
-      </div>
-      <div class="card table-card">
-        <div class="table-card-header">
-          <div>
-            <h3>Team proficiency over time</h3>
-            <div class="note">Percentage of each team that is fully productive each month.</div>
-          </div>
-          <button class="table-toggle-button" type="button" data-target="proficiency-body">Collapse</button>
-        </div>
-        <div class="table-card-body" id="proficiency-body">
-          <div class="table-scroll" id="proficiency-table"></div>
-          <div id="proficiency-chart" class="hidden chart-wrapper">
-            <canvas id="chart-canvas" height="120"></canvas>
-          </div>
-        </div>
-      </div>
-      <div class="card table-card">
-        <div class="table-card-header">
-          <div>
-            <h3>Percentage of new hires vs previous month</h3>
-            <div class="note">
-              Untrained population ÷ total population, showing the share of each team still in training.
-            </div>
-          </div>
-          <button class="table-toggle-button" type="button" data-target="budget-change-body">Collapse</button>
-        </div>
-        <div class="table-card-body" id="budget-change-body">
-          <div class="table-scroll" id="budget-change-table"></div>
-          <div id="budget-change-chart" class="hidden chart-wrapper">
-            <canvas id="budget-change-canvas" height="120"></canvas>
-          </div>
-        </div>
-      </div>
-      <div class="card table-card">
-        <div class="table-card-header">
-          <div>
-            <h3>Untrained vs trained population</h3>
-            <div class="note">
-              Untrained population ÷ trained population, highlighting the training burden relative to experienced staff.
-            </div>
-          </div>
-          <button class="table-toggle-button" type="button" data-target="untrained-vs-trained-body">Collapse</button>
-        </div>
-        <div class="table-card-body" id="untrained-vs-trained-body">
-          <div class="table-scroll" id="untrained-vs-trained-table"></div>
-          <div id="untrained-vs-trained-chart" class="hidden chart-wrapper">
-            <canvas id="untrained-vs-trained-canvas" height="120"></canvas>
-          </div>
-        </div>
-      </div>
+      <div id="step-5-metrics"></div>
     </div>
   </section>
 
@@ -1073,10 +906,117 @@
       return labels;
     };
 
+    const DEFAULT_PRODUCT_LEVELS = [2, 4, 6, 8, 10, 12, 14];
+    const DEFAULT_TEAM_ROWS = [
+      ["Core Platform", 22, 28, 36, 44, 52, 60, 68],
+      ["Data Systems", 15, 19, 24, 30, 36, 42, 48],
+      ["Client Success", 18, 23, 29, 36, 43, 50, 57],
+    ];
+    const STEP_5_METRICS = [
+      {
+        title: "Team size over time",
+        note: "Monthly total headcount by team.",
+        bodyId: "team-size-body",
+        tableId: "team-size-table",
+        chartId: "team-size-chart",
+        canvasId: "team-size-canvas",
+        first: true,
+      },
+      {
+        title: "Training-adjusted new team members",
+        note: "New hires multiplied by the inverse of their training curve (e.g., 20% proficiency = 80% new).",
+        bodyId: "newness-body",
+        tableId: "newness-table",
+        chartId: "newness-chart",
+        canvasId: "newness-canvas",
+      },
+      {
+        title: "Team members within experience band (absolute)",
+        note: "Counts people hired within the selected lower/upper month range (inclusive).",
+        bodyId: "experience-band-body",
+        tableId: "experience-band-table",
+      },
+      {
+        title: "Team proficiency over time",
+        note: "Percentage of each team that is fully productive each month.",
+        bodyId: "proficiency-body",
+        tableId: "proficiency-table",
+        chartId: "proficiency-chart",
+        canvasId: "chart-canvas",
+      },
+      {
+        title: "Percentage of new hires vs previous month",
+        note: "Untrained population ÷ total population, showing the share of each team still in training.",
+        bodyId: "budget-change-body",
+        tableId: "budget-change-table",
+        chartId: "budget-change-chart",
+        canvasId: "budget-change-canvas",
+      },
+      {
+        title: "Untrained vs trained population",
+        note: "Untrained population ÷ trained population, highlighting the training burden relative to experienced staff.",
+        bodyId: "untrained-vs-trained-body",
+        tableId: "untrained-vs-trained-table",
+        chartId: "untrained-vs-trained-chart",
+        canvasId: "untrained-vs-trained-canvas",
+      },
+    ];
+
     const TIMELINE_START_YEAR = 2026;
     const DEFAULT_QUARTER_COUNT = 10;
     const DEFAULT_TEAM_COUNT = 13;
     const DEFAULT_LEVEL_COUNT = 12;
+
+    const renderTeamTable = () => {
+      const staffingHeader = (value) => `
+        <th>
+          Staffing for
+          <div class="subtle">Products / Quarter</div>
+          <input class="product-level-input" type="number" min="0" step="1" value="${value}" />
+        </th>
+      `;
+      document.getElementById("team-table").innerHTML = `
+        <thead>
+          <tr>
+            <th>Team</th>
+            ${DEFAULT_PRODUCT_LEVELS.map(staffingHeader).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${DEFAULT_TEAM_ROWS.map(([teamName, ...levels]) => `
+            <tr>
+              <td><input type="text" value="${teamName}" /></td>
+              ${levels.map((value) => `<td><input type="number" min="0" step="1" value="${value}" /></td>`).join("")}
+            </tr>
+          `).join("")}
+        </tbody>
+      `;
+    };
+
+    const renderStep5Metrics = () => {
+      document.getElementById("step-5-metrics").innerHTML = STEP_5_METRICS.map(({ title, note, bodyId, tableId, chartId, canvasId, first }) => `
+        <div class="card table-card"${first ? ' style="margin-top: 16px;"' : ""}>
+          <div class="table-card-header">
+            <div>
+              <h3>${title}</h3>
+              <div class="note">${note}</div>
+            </div>
+            <button class="table-toggle-button" type="button" data-target="${bodyId}">Collapse</button>
+          </div>
+          <div class="table-card-body" id="${bodyId}">
+            <div class="table-scroll" id="${tableId}"></div>
+            ${chartId && canvasId ? `
+              <div id="${chartId}" class="hidden chart-wrapper">
+                <canvas id="${canvasId}" height="120"></canvas>
+              </div>
+            ` : ""}
+          </div>
+        </div>
+      `).join("");
+    };
+
+    renderTeamTable();
+    renderStep5Metrics();
 
     const teamTable = document.getElementById("team-table");
     const trainingTable = document.getElementById("training-table");
