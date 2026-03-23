@@ -372,6 +372,21 @@
       min-width: 80px;
     }
 
+    #team-table {
+      table-layout: fixed;
+    }
+
+    #team-table th:first-child,
+    #team-table td:first-child {
+      width: var(--team-first-column-width, 25%);
+      min-width: 180px;
+    }
+
+    #team-table th:not(:first-child),
+    #team-table td:not(:first-child) {
+      width: var(--team-other-column-width, 12.5%);
+    }
+
     #step-2 .compact-table input[type="number"],
     #step-3 .compact-table input[type="number"] {
       min-width: 0;
@@ -579,12 +594,22 @@
     </div>
     <div class="section-body">
       <p>
-        Enter planned production in products per quarter (unit) for each quarter from 2026 through 2028. These values
-        drive the staffing projections below. If a rate falls between the product levels in section 1, staffing is
-        linearly interpolated between the nearest levels. Capture internal hiring share per quarter in the row below.
+        Enter planned production in products per quarter (unit) across a variable timeline. These values drive the staffing
+        projections below. If a rate falls between the product levels in section 1, staffing is linearly interpolated between
+        the nearest levels. Then capture team-specific internal hiring share for every quarter in one table.
       </p>
+      <div class="section-actions">
+        <button type="button" id="add-quarter">Add quarter</button>
+        <button type="button" id="remove-quarter">Remove quarter</button>
+      </div>
       <div class="table-scroll">
         <table id="monthly-products-table" class="compact-table">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="table-scroll">
+        <table id="internal-hiring-table" class="compact-table proficiency-table">
           <thead></thead>
           <tbody></tbody>
         </table>
@@ -835,8 +860,8 @@
           </div>
         </li>
         <li>
-          <strong>Split hires into high-fit and low-fit cohorts.</strong> The “Internal hiring (%)” field in Section 1
-          is now set per quarter in Section 2 and treated as the share of hires who are high-fit. For each month:
+          <strong>Split hires into high-fit and low-fit cohorts.</strong> The “Internal hiring (%)” inputs in Section 2
+          are now set per team and per quarter, and each value is treated as the share of hires who are high-fit. For each month:
           <div class="note">
             <em>High-fit hires = hires × internal hiring share</em><br />
             <em>Low-fit hires = hires − high-fit hires</em>
@@ -887,12 +912,14 @@
       return labels;
     };
 
-    const monthLabels = generateMonthLabels(2026, 2028);
-    const quarterLabels = generateQuarterLabels(2026, 2028);
+    const TIMELINE_START_YEAR = 2026;
+    const DEFAULT_QUARTER_COUNT = 12;
 
     const teamTable = document.getElementById("team-table");
     const trainingTable = document.getElementById("training-table");
     const monthlyProductsBody = document.querySelector("#monthly-products-table tbody");
+    const internalHiringHead = document.querySelector("#internal-hiring-table thead");
+    const internalHiringBody = document.querySelector("#internal-hiring-table tbody");
     const totalHires = document.getElementById("total-hires");
     const peakHeadcount = document.getElementById("peak-headcount");
     const yearEnd = document.getElementById("year-end");
@@ -928,9 +955,12 @@
     const removeTeamButton = document.getElementById("remove-team");
     const addLevelButton = document.getElementById("add-level");
     const removeLevelButton = document.getElementById("remove-level");
+    const addQuarterButton = document.getElementById("add-quarter");
+    const removeQuarterButton = document.getElementById("remove-quarter");
     const chartInstances = new Map();
     let isRestoring = false;
     let timeColumnView = "month";
+    let quarterCount = DEFAULT_QUARTER_COUNT;
     const STORAGE_KEY = "team-growth-proficiency-state";
 
     const formatNumber = (value, decimals = 0) => {
@@ -946,14 +976,31 @@
     const getProductLevels = () =>
       Array.from(document.querySelectorAll(".product-level-input")).map((input) => Number(input.value) || 0);
 
-    const buildQuarterProductsTable = (savedRates = [], savedInternalHiring = []) => {
+    const getQuarterLabels = (count = quarterCount) => {
+      const labels = [];
+      for (let index = 0; index < count; index += 1) {
+        const year = TIMELINE_START_YEAR + Math.floor(index / 4);
+        const quarter = (index % 4) + 1;
+        labels.push(`Q${quarter} ${year}`);
+      }
+      return labels;
+    };
+
+    const getMonthLabels = (count = quarterCount) => {
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return Array.from({ length: count }).flatMap((_, quarterIndex) => {
+        const year = TIMELINE_START_YEAR + Math.floor(quarterIndex / 4);
+        const quarterMonthOffset = (quarterIndex % 4) * 3;
+        return months.slice(quarterMonthOffset, quarterMonthOffset + 3).map((month) => `${month} ${year}`);
+      });
+    };
+
+    const buildQuarterProductsTable = (savedRates = []) => {
       const body = monthlyProductsBody;
       const head = document.querySelector("#monthly-products-table thead");
+      const quarterLabels = getQuarterLabels();
       const defaultRates = quarterLabels.map((_, index) => (index < 4 ? 6 : index < 8 ? 7 : 8));
-      const rates = savedRates.length === quarterLabels.length ? savedRates : defaultRates;
-      const defaultInternalHiring = quarterLabels.map(() => 0);
-      const internalHiring =
-        savedInternalHiring.length === quarterLabels.length ? savedInternalHiring : defaultInternalHiring;
+      const rates = savedRates.length === quarterLabels.length ? savedRates : defaultRates.slice(0, quarterLabels.length);
       head.innerHTML = `
         <tr>
           <th>Time period</th>
@@ -973,19 +1020,38 @@
             )
             .join("")}
         </tr>
+      `;
+    };
+
+    const buildInternalHiringTable = (teamNames, savedInternalHiring = {}) => {
+      const quarterLabels = getQuarterLabels();
+      internalHiringHead.innerHTML = `
         <tr>
-          <td class="subtle">Internal hiring (%)</td>
-          ${internalHiring
-            .map(
-              (value) => `
-                <td>
-                  <input class="internal-hiring-input" type="number" min="0" max="100" step="1" value="${value}" />
-                </td>
-              `
-            )
-            .join("")}
+          <th>Team / quarter</th>
+          ${quarterLabels.map((label) => `<th>${label}</th>`).join("")}
         </tr>
       `;
+      internalHiringBody.innerHTML = teamNames.map((teamName) => {
+        const values = Array.isArray(savedInternalHiring?.[teamName]) ? savedInternalHiring[teamName] : [];
+        return `
+          <tr>
+            <td>${teamName || "Team"}</td>
+            ${quarterLabels.map((_, index) => `
+              <td>
+                <input
+                  class="internal-hiring-input"
+                  data-team="${String(teamName || "Team").replace(/"/g, '&quot;')}"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value="${values[index] ?? 0}"
+                />
+              </td>
+            `).join("")}
+          </tr>
+        `;
+      }).join("");
     };
 
     const parseTeams = () => {
@@ -1010,12 +1076,24 @@
       );
 
     const parseQuarterInternalHiring = () =>
-      Array.from(monthlyProductsBody.querySelectorAll(".internal-hiring-input")).map(
-        (input) => Number(input.value) || 0
-      );
+      Array.from(internalHiringBody.querySelectorAll("tr")).reduce((accumulator, row) => {
+        const teamName = row.cells[0]?.textContent?.trim() || "Team";
+        accumulator[teamName] = Array.from(row.querySelectorAll(".internal-hiring-input")).map(
+          (input) => Number(input.value) || 0
+        );
+        return accumulator;
+      }, {});
 
     const expandQuarterRatesToMonthly = (quarterRates) =>
       quarterRates.flatMap((rate) => [rate, rate, rate]);
+
+    const expandInternalHiringToMonthly = (internalHiringByTeam) =>
+      Object.fromEntries(
+        Object.entries(internalHiringByTeam).map(([teamName, quarterRates]) => [
+          teamName,
+          expandQuarterRatesToMonthly(quarterRates),
+        ])
+      );
 
     const parseTrainingCurve = () => {
       const rows = Array.from(trainingTable.tBodies[0].rows);
@@ -1077,16 +1155,17 @@
         };
       });
 
-    const computeProficiencyTimeline = (teams, trainingCurve, internalHiringMonthly) =>
+    const computeProficiencyTimeline = (teams, trainingCurve, internalHiringMonthlyByTeam) =>
       teams.map((team) => {
         const totalMonthlyHeadcount = [];
         const proficiencyMonthly = [];
         const newnessMonthly = [];
 
-        for (let monthIndex = 0; monthIndex < monthLabels.length; monthIndex += 1) {
+        for (let monthIndex = 0; monthIndex < getMonthLabels().length; monthIndex += 1) {
           let totalHeadcount = team.current;
           let effectiveCapacity = team.current;
 
+          const internalHiringMonthly = internalHiringMonthlyByTeam[team.name] || [];
           for (let hireMonth = 0; hireMonth <= monthIndex; hireMonth += 1) {
             const hires = team.hiresMonthly[hireMonth] || 0;
             totalHeadcount += hires;
@@ -1131,7 +1210,7 @@
       const minMonths = Math.max(0, Math.min(lowerMonths, upperMonths));
       const maxMonths = Math.max(0, Math.max(lowerMonths, upperMonths));
       return teams.map((team) => {
-        const experienceBandMonthly = monthLabels.map((_, monthIndex) => {
+        const experienceBandMonthly = getMonthLabels().map((_, monthIndex) => {
           let bandCount = 0;
           for (let hireMonth = 0; hireMonth <= monthIndex; hireMonth += 1) {
             const monthsAgo = monthIndex - hireMonth;
@@ -1149,7 +1228,7 @@
     };
 
     const updateStaffingSummary = (teams) => {
-      const monthCount = monthLabels.length;
+      const monthCount = getMonthLabels().length;
       const monthlyTotals = Array(monthCount).fill(0);
       let totalHiresValue = 0;
 
@@ -1202,8 +1281,9 @@
 
     const getTimeLabels = (quarterRates) => {
       if (timeColumnView !== "quarter") {
-        return monthLabels;
+        return getMonthLabels();
       }
+      const quarterLabels = getQuarterLabels();
       return quarterLabels.map((label, index) => {
         const rate = Number(quarterRates?.[index]);
         if (!Number.isFinite(rate)) {
@@ -1522,7 +1602,7 @@
       const quarterInternalHiring = parseQuarterInternalHiring();
       updateQuarterBalance(quarterProducts);
       const monthlyProducts = expandQuarterRatesToMonthly(quarterProducts);
-      const monthlyInternalHiring = expandQuarterRatesToMonthly(quarterInternalHiring);
+      const monthlyInternalHiring = expandInternalHiringToMonthly(quarterInternalHiring);
 
       const staffedTeams = computeMonthlyStaffing(teams, productLevels, monthlyProducts);
       updateStaffingSummary(staffedTeams);
@@ -1564,6 +1644,7 @@
         teamRows: Array.from(teamTable.tBodies[0].rows).map((row) =>
           Array.from(row.querySelectorAll("input")).map((input) => input.value)
         ),
+        quarterCount,
         quarterProducts: parseQuarterProducts(),
         quarterInternalHiring: parseQuarterInternalHiring(),
         trainingCurve: {
@@ -1644,6 +1725,10 @@
           });
         });
       }
+      if (Number.isInteger(stored.quarterCount) && stored.quarterCount > 0) {
+        quarterCount = stored.quarterCount;
+        buildQuarterProductsTable(stored.quarterProducts || []);
+      }
       if (Array.isArray(stored.quarterProducts)) {
         const monthlyInputs = monthlyProductsBody.querySelectorAll(".monthly-product-input");
         stored.quarterProducts.forEach((value, index) => {
@@ -1652,14 +1737,7 @@
           }
         });
       }
-      if (Array.isArray(stored.quarterInternalHiring)) {
-        const internalInputs = monthlyProductsBody.querySelectorAll(".internal-hiring-input");
-        stored.quarterInternalHiring.forEach((value, index) => {
-          if (internalInputs[index] && value !== undefined) {
-            internalInputs[index].value = value;
-          }
-        });
-      }
+      buildInternalHiringTable(parseTeams().map((team) => team.name), stored.quarterInternalHiring || {});
       if (stored.trainingCurve) {
         const lowFitInputs = trainingTable.tBodies[0].rows[0].querySelectorAll("input");
         stored.trainingCurve.lowFit?.forEach((value, index) => {
@@ -1703,6 +1781,20 @@
       isRestoring = false;
     };
 
+    const syncInternalHiringTeamNames = () => {
+      const teamNames = parseTeams().map((team) => team.name || "Team");
+      const storedValues = parseQuarterInternalHiring();
+      buildInternalHiringTable(teamNames, storedValues);
+      bindInputs();
+    };
+
+    const updateTeamTableColumnWidths = () => {
+      const columnCount = teamTable.tHead.rows[0]?.cells.length || 1;
+      const weightedColumns = Math.max(columnCount, 1) + 1;
+      teamTable.style.setProperty("--team-first-column-width", `${200 / weightedColumns}%`);
+      teamTable.style.setProperty("--team-other-column-width", `${100 / weightedColumns}%`);
+    };
+
     const bindInputs = () => {
       document.querySelectorAll("input, select").forEach((input) => {
         if (!input.dataset.bound) {
@@ -1710,6 +1802,7 @@
           input.dataset.bound = "true";
         }
       });
+      updateTeamTableColumnWidths();
       if (!viewToggle.dataset.bound) {
         viewToggle.addEventListener("change", updateViewToggle);
         viewToggle.dataset.bound = "true";
@@ -1743,6 +1836,7 @@
       const body = teamTable.tBodies[0];
       const levelCount = getProductLevels().length;
       body.appendChild(createTeamRow(levelCount));
+      syncInternalHiringTeamNames();
       bindInputs();
       recompute();
     };
@@ -1753,6 +1847,7 @@
         return;
       }
       body.deleteRow(body.rows.length - 1);
+      syncInternalHiringTeamNames();
       recompute();
     };
 
@@ -1858,6 +1953,7 @@
             }
           });
         });
+        syncInternalHiringTeamNames();
         bindInputs();
         recompute();
       };
@@ -1973,6 +2069,21 @@
       recompute();
     };
 
+    const adjustQuarterCount = (delta) => {
+      quarterCount = Math.max(1, quarterCount + delta);
+      const storedRates = parseQuarterProducts();
+      const storedInternalHiring = parseQuarterInternalHiring();
+      buildQuarterProductsTable(storedRates.slice(0, quarterCount).concat(Array(Math.max(quarterCount - storedRates.length, 0)).fill(storedRates[storedRates.length - 1] ?? 0)));
+      buildInternalHiringTable(parseTeams().map((team) => team.name), Object.fromEntries(
+        Object.entries(storedInternalHiring).map(([teamName, values]) => [
+          teamName,
+          values.slice(0, quarterCount).concat(Array(Math.max(quarterCount - values.length, 0)).fill(values[values.length - 1] ?? 0)),
+        ])
+      ));
+      bindInputs();
+      recompute();
+    };
+
     exportCsvButton.addEventListener("click", exportCsv);
     importCsvButton.addEventListener("click", () => csvFileInput.click());
     csvFileInput.addEventListener("change", (event) => {
@@ -1985,15 +2096,28 @@
     removeLevelButton.addEventListener("click", removeProductLevelColumn);
     addTeamButton.addEventListener("click", addTeamRow);
     removeTeamButton.addEventListener("click", removeTeamRow);
+    addQuarterButton.addEventListener("click", () => adjustQuarterCount(1));
+    removeQuarterButton.addEventListener("click", () => adjustQuarterCount(-1));
     teamTable.addEventListener("paste", handleTeamTablePaste);
+    teamTable.addEventListener("input", (event) => {
+      const target = event.target;
+      if (target instanceof HTMLInputElement && target.type === "text") {
+        syncInternalHiringTeamNames();
+        recompute();
+      }
+    });
     timeColumnToggle.addEventListener("click", () => {
       timeColumnView = timeColumnView === "quarter" ? "month" : "quarter";
       recompute();
     });
 
     const storedState = getStoredState();
-    buildQuarterProductsTable(storedState?.quarterProducts, storedState?.quarterInternalHiring);
-    ensureTeamRowCount(13);
+    if (Number.isInteger(storedState?.quarterCount) && storedState.quarterCount > 0) {
+      quarterCount = storedState.quarterCount;
+    }
+    buildQuarterProductsTable(storedState?.quarterProducts);
+    ensureTeamRowCount(3);
+    buildInternalHiringTable(parseTeams().map((team) => team.name), storedState?.quarterInternalHiring || {});
     bindSectionToggles();
     bindTableToggles();
     loadState(storedState);
