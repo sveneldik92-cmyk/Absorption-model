@@ -494,16 +494,40 @@
     }
 
     #step-2 .compact-table input[type="number"] {
-      width: 3ch;
-      min-width: 3ch;
+      width: 6ch;
+      min-width: 6ch;
+      max-width: 100%;
       padding-inline: 0.2rem;
       font-size: inherit;
       text-align: center;
     }
 
     #step-3 .compact-table input[type="number"] {
-      width: 3ch;
-      min-width: 3ch;
+      width: 6ch;
+      min-width: 6ch;
+      max-width: 100%;
+    }
+
+    .bulk-fill-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .bulk-fill-controls label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .bulk-fill-controls input[type="number"] {
+      width: 8ch;
+      min-width: 8ch;
+      margin: 0;
     }
 
     .percent-input {
@@ -511,12 +535,22 @@
       align-items: center;
       justify-content: center;
       gap: 2px;
-      width: 100%;
+      width: auto;
+      white-space: nowrap;
+    }
+
+    .percent-input input[type="number"] {
+      flex: 0 0 auto;
+      margin: 0;
     }
 
     .percent-input span {
+      display: inline-flex;
+      align-items: center;
       font-size: inherit;
       color: inherit;
+      flex: 0 0 auto;
+      margin-left: 1px;
     }
 
     #internal-hiring-table td:first-child,
@@ -766,6 +800,13 @@
         Set the internal hiring percentage for each team in each quarter. Team names come from section 1 and these values
         determine how much of each month's hiring follows the high-fit training curve.
       </p>
+      <div class="bulk-fill-controls">
+        <label>
+          Fill all internal hiring values (%)
+          <input type="number" id="internal-hiring-fill-value" min="0" max="100" step="1" value="" placeholder="50" />
+        </label>
+        <button type="button" id="apply-internal-hiring-fill">Apply to all cells</button>
+      </div>
       <div class="table-scroll">
         <table id="internal-hiring-table" class="compact-table proficiency-table unified-quarter-table">
           <thead></thead>
@@ -810,22 +851,22 @@
       <div class="meta-grid">
         <div class="meta-row">
         <label>
-          Red threshold (%)
-          <input type="number" id="threshold-red" min="0" max="100" value="80" />
-        </label>
-        <label>
           Orange threshold (%)
           <input type="number" id="threshold-orange" min="0" max="100" value="90" />
+        </label>
+        <label>
+          Red threshold (%)
+          <input type="number" id="threshold-red" min="0" max="100" value="80" />
         </label>
         </div>
         <div class="meta-row">
           <label>
-            New-hire red threshold (%)
-            <input type="number" id="new-hire-threshold-red" min="0" max="100" value="25" />
-          </label>
-          <label>
             New-hire orange threshold (%)
             <input type="number" id="new-hire-threshold-orange" min="0" max="100" value="20" />
+          </label>
+          <label>
+            New-hire red threshold (%)
+            <input type="number" id="new-hire-threshold-red" min="0" max="100" value="25" />
           </label>
         </div>
         <div class="meta-row">
@@ -1083,6 +1124,8 @@
     const removeQuarterButton = document.getElementById("remove-quarter");
     const addTrainingMonthButton = document.getElementById("add-training-month");
     const removeTrainingMonthButton = document.getElementById("remove-training-month");
+    const internalHiringFillValueInput = document.getElementById("internal-hiring-fill-value");
+    const applyInternalHiringFillButton = document.getElementById("apply-internal-hiring-fill");
     const chartInstances = new Map();
     let isRestoring = false;
     let timeColumnView = "month";
@@ -1102,9 +1145,13 @@
     };
 
     const buildTrainingTable = (savedCurve = {}) => {
-      const lowFitValues = Array.isArray(savedCurve.lowFit) ? savedCurve.lowFit : DEFAULT_TRAINING_CURVE.lowFit;
-      const highFitValues = Array.isArray(savedCurve.highFit) ? savedCurve.highFit : DEFAULT_TRAINING_CURVE.highFit;
-      const monthCount = Math.max(lowFitValues.length, highFitValues.length, DEFAULT_TRAINING_CURVE.lowFit.length);
+      const hasSavedLowFit = Array.isArray(savedCurve.lowFit);
+      const hasSavedHighFit = Array.isArray(savedCurve.highFit);
+      const lowFitValues = hasSavedLowFit ? savedCurve.lowFit : DEFAULT_TRAINING_CURVE.lowFit;
+      const highFitValues = hasSavedHighFit ? savedCurve.highFit : DEFAULT_TRAINING_CURVE.highFit;
+      const monthCount = hasSavedLowFit || hasSavedHighFit
+        ? Math.max(lowFitValues.length, highFitValues.length, 1)
+        : Math.max(lowFitValues.length, highFitValues.length, DEFAULT_TRAINING_CURVE.lowFit.length);
       trainingTable.tHead.innerHTML = `
         <tr>
           <th>Month Since Hire</th>
@@ -1483,15 +1530,27 @@
       quarterBalance.className = "badge";
     };
 
+    const normalizeThresholdsLowIsBad = (redThreshold, orangeThreshold) => ({
+      red: Math.min(redThreshold, orangeThreshold),
+      orange: Math.max(redThreshold, orangeThreshold),
+    });
+
+    const normalizeThresholdsHighIsBad = (redThreshold, orangeThreshold) => ({
+      red: Math.max(redThreshold, orangeThreshold),
+      orange: Math.min(redThreshold, orangeThreshold),
+    });
+
     const getHeatClass = (value, redThreshold, orangeThreshold) => {
-      if (value < redThreshold) return "heat-low";
-      if (value < orangeThreshold) return "heat-mid";
+      const thresholds = normalizeThresholdsLowIsBad(redThreshold, orangeThreshold);
+      if (value < thresholds.red) return "heat-low";
+      if (value < thresholds.orange) return "heat-mid";
       return "heat-high";
     };
 
     const getHeatClassHighIsBad = (value, redThreshold, orangeThreshold) => {
-      if (value >= redThreshold) return "heat-low";
-      if (value >= orangeThreshold) return "heat-mid";
+      const thresholds = normalizeThresholdsHighIsBad(redThreshold, orangeThreshold);
+      if (value >= thresholds.red) return "heat-low";
+      if (value >= thresholds.orange) return "heat-mid";
       return "heat-high";
     };
 
@@ -1847,19 +1906,15 @@
 
       const redThreshold = (Number(thresholdRedInput.value) || 0) / 100;
       const orangeThreshold = (Number(thresholdOrangeInput.value) || 0) / 100;
-      const sortedRed = Math.min(redThreshold, orangeThreshold);
-      const sortedOrange = Math.max(redThreshold, orangeThreshold);
       const newHireRedThreshold = (Number(newHireThresholdRedInput.value) || 0) / 100;
       const newHireOrangeThreshold = (Number(newHireThresholdOrangeInput.value) || 0) / 100;
-      const sortedNewHireRed = Math.max(newHireRedThreshold, newHireOrangeThreshold);
-      const sortedNewHireOrange = Math.min(newHireRedThreshold, newHireOrangeThreshold);
 
       renderHeadcountTable(teamsWithExperienceBand, quarterProducts);
-      renderBudgetChangeTable(teamsWithExperienceBand, sortedNewHireRed, sortedNewHireOrange, quarterProducts);
-      renderUntrainedVsTrainedTable(teamsWithExperienceBand, sortedNewHireRed, sortedNewHireOrange, quarterProducts);
+      renderBudgetChangeTable(teamsWithExperienceBand, newHireRedThreshold, newHireOrangeThreshold, quarterProducts);
+      renderUntrainedVsTrainedTable(teamsWithExperienceBand, newHireRedThreshold, newHireOrangeThreshold, quarterProducts);
       renderNewnessTable(teamsWithExperienceBand, quarterProducts);
       renderExperienceBandTable(teamsWithExperienceBand, quarterProducts);
-      renderProficiencyTable(teamsWithExperienceBand, sortedRed, sortedOrange, quarterProducts);
+      renderProficiencyTable(teamsWithExperienceBand, redThreshold, orangeThreshold, quarterProducts);
       renderCharts(teamsWithExperienceBand, quarterProducts);
       updateViewToggle();
       updateTimeColumnToggle();
@@ -2286,6 +2341,18 @@
       recompute();
     };
 
+    const applyInternalHiringFill = () => {
+      const fillValue = Number(internalHiringFillValueInput.value);
+      if (!Number.isFinite(fillValue)) {
+        return;
+      }
+      const normalizedValue = Math.min(100, Math.max(0, fillValue));
+      internalHiringBody.querySelectorAll(".internal-hiring-input").forEach((input) => {
+        input.value = normalizedValue;
+      });
+      recompute();
+    };
+
     const adjustQuarterCount = (delta) => {
       quarterCount = Math.max(1, quarterCount + delta);
       const storedRates = parseQuarterProducts();
@@ -2323,6 +2390,7 @@
     removeQuarterButton.addEventListener("click", () => adjustQuarterCount(-1));
     addTrainingMonthButton.addEventListener("click", () => adjustTrainingMonthCount(1));
     removeTrainingMonthButton.addEventListener("click", () => adjustTrainingMonthCount(-1));
+    applyInternalHiringFillButton.addEventListener("click", applyInternalHiringFill);
     window.addEventListener("resize", updateStep2Layout);
     teamTable.addEventListener("paste", handleTeamTablePaste);
     teamTable.addEventListener("input", (event) => {
