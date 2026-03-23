@@ -412,14 +412,33 @@
       margin: 0 auto;
     }
 
+    #step-2 {
+      --step-2-first-column-width: 160px;
+      --step-2-data-column-width: 90px;
+    }
+
+    #step-2 .compact-table {
+      width: 100%;
+      min-width: 100%;
+      table-layout: fixed;
+    }
+
     #step-2 .compact-table th,
     #step-2 .compact-table td {
-      min-width: 90px;
+      min-width: var(--step-2-data-column-width);
+      width: var(--step-2-data-column-width);
     }
 
     #step-2 .compact-table th:first-child,
     #step-2 .compact-table td:first-child {
-      min-width: 160px;
+      min-width: var(--step-2-first-column-width);
+      width: var(--step-2-first-column-width);
+    }
+
+    #internal-hiring-table td:first-child,
+    #internal-hiring-table th:first-child {
+      background: #e5e7eb;
+      color: #6b7280;
     }
 
     #step-4 .compact-table th,
@@ -446,10 +465,6 @@
       word-break: break-word;
     }
 
-    #step-2 #monthly-products-table {
-      width: 100%;
-      min-width: 100%;
-    }
 
     #step-2 .table-scroll {
       max-width: calc(100% - 16px);
@@ -1027,7 +1042,7 @@
       const quarterLabels = getQuarterLabels();
       internalHiringHead.innerHTML = `
         <tr>
-          <th>Team / quarter</th>
+          <th aria-label="Team"></th>
           ${quarterLabels.map((label) => `<th>${label}</th>`).join("")}
         </tr>
       `;
@@ -1795,6 +1810,15 @@
       teamTable.style.setProperty("--team-other-column-width", `${100 / weightedColumns}%`);
     };
 
+    const updateStep2TableColumnWidths = () => {
+      const firstColumnWidth = 160;
+      const dataColumnCount = Math.max(quarterCount, 1);
+      const availableWidth = Math.max(window.innerWidth - 96 - firstColumnWidth, dataColumnCount * 90);
+      const dataColumnWidth = Math.max(90, availableWidth / dataColumnCount);
+      document.getElementById("step-2").style.setProperty("--step-2-first-column-width", `${firstColumnWidth}px`);
+      document.getElementById("step-2").style.setProperty("--step-2-data-column-width", `${dataColumnWidth}px`);
+    };
+
     const bindInputs = () => {
       document.querySelectorAll("input, select").forEach((input) => {
         if (!input.dataset.bound) {
@@ -1803,6 +1827,7 @@
         }
       });
       updateTeamTableColumnWidths();
+      updateStep2TableColumnWidths();
       if (!viewToggle.dataset.bound) {
         viewToggle.addEventListener("change", updateViewToggle);
         viewToggle.dataset.bound = "true";
@@ -2110,6 +2135,7 @@
       timeColumnView = timeColumnView === "quarter" ? "month" : "quarter";
       recompute();
     });
+    window.addEventListener("resize", updateStep2TableColumnWidths);
 
     const storedState = getStoredState();
     if (Number.isInteger(storedState?.quarterCount) && storedState.quarterCount > 0) {
