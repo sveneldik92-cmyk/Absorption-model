@@ -400,13 +400,13 @@
 
     #team-table th:first-child,
     #team-table td:first-child {
-      width: var(--team-first-column-width, auto);
-      min-width: 120px;
+      width: var(--team-first-column-width, 25%);
+      min-width: 180px;
     }
 
     #team-table th:not(:first-child),
     #team-table td:not(:first-child) {
-      width: var(--team-other-column-width, auto);
+      width: var(--team-other-column-width, 12.5%);
     }
 
     #step-2 .compact-table input[type="number"],
@@ -440,9 +440,9 @@
     }
 
     #step-2 .compact-table {
-      width: max-content;
-      min-width: auto;
-      table-layout: auto;
+      width: 100%;
+      min-width: 100%;
+      table-layout: fixed;
     }
 
     #step-2 .compact-table th,
@@ -668,10 +668,9 @@
     </div>
     <div class="section-body">
       <p>
-        Enter planned production in products per quarter (unit) across a variable timeline for all teams. These values drive
-        the staffing projections below. If a rate falls between the product levels in section 1, staffing is linearly
-        interpolated between the nearest levels. Then capture team-specific internal hiring share for every quarter in one
-        table.
+        Enter planned production in products per quarter (unit) across a variable timeline. These values drive the staffing
+        projections below. If a rate falls between the product levels in section 1, staffing is linearly interpolated between
+        the nearest levels. Then capture team-specific internal hiring share for every quarter in one table.
       </p>
       <div class="section-actions">
         <button type="button" id="add-quarter">Add quarter</button>
@@ -1858,59 +1857,20 @@
       bindInputs();
     };
 
-    const measureTextWidth = (values, { min = 0, padding = 24 } = {}) => {
-      const measurer = document.createElement("span");
-      measurer.style.position = "absolute";
-      measurer.style.visibility = "hidden";
-      measurer.style.whiteSpace = "nowrap";
-      measurer.style.font = getComputedStyle(document.body).font;
-      document.body.appendChild(measurer);
-      let maxWidth = min;
-      values.forEach((value) => {
-        measurer.textContent = value;
-        maxWidth = Math.max(maxWidth, Math.ceil(measurer.getBoundingClientRect().width) + padding);
-      });
-      measurer.remove();
-      return maxWidth;
-    };
-
     const updateTeamTableColumnWidths = () => {
-      const headerCells = Array.from(teamTable.tHead.rows[0]?.cells || []);
-      const bodyRows = Array.from(teamTable.tBodies[0]?.rows || []);
-      const firstColumnValues = [
-        ...headerCells.slice(0, 1).map((cell) => cell.textContent?.trim() || ""),
-        ...bodyRows.map((row) => row.cells[0]?.querySelector("input")?.value?.trim() || row.cells[0]?.textContent?.trim() || "")
-      ];
-      const otherColumnValues = [
-        ...headerCells.slice(1).map((cell) => cell.textContent?.trim() || ""),
-        ...bodyRows.flatMap((row) =>
-          Array.from(row.cells)
-            .slice(1)
-            .map((cell) => cell.querySelector("input")?.value?.trim() || cell.textContent?.trim() || "")
-        )
-      ];
-      teamTable.style.setProperty("--team-first-column-width", `${measureTextWidth(firstColumnValues, { min: 120, padding: 36 })}px`);
-      teamTable.style.setProperty("--team-other-column-width", `${measureTextWidth(otherColumnValues, { min: 68, padding: 30 })}px`);
+      const columnCount = teamTable.tHead.rows[0]?.cells.length || 1;
+      const weightedColumns = Math.max(columnCount, 1) + 1;
+      teamTable.style.setProperty("--team-first-column-width", `${200 / weightedColumns}%`);
+      teamTable.style.setProperty("--team-other-column-width", `${100 / weightedColumns}%`);
     };
 
     const updateStep2TableColumnWidths = () => {
-      const step2Table = document.getElementById("internal-hiring-table");
-      const headerCells = Array.from(step2Table.tHead.rows[0]?.cells || []);
-      const bodyRows = Array.from(step2Table.tBodies[0]?.rows || []);
-      const firstColumnValues = [
-        ...headerCells.slice(0, 1).map((cell) => cell.textContent?.trim() || ""),
-        ...bodyRows.map((row) => row.cells[0]?.textContent?.trim() || "")
-      ];
-      const dataColumnValues = [
-        ...headerCells.slice(1).map((cell) => cell.textContent?.trim() || ""),
-        ...bodyRows.flatMap((row) =>
-          Array.from(row.cells)
-            .slice(1)
-            .map((cell) => cell.querySelector("input")?.value?.trim() || cell.textContent?.trim() || "")
-        )
-      ];
-      document.getElementById("step-2").style.setProperty("--step-2-first-column-width", `${measureTextWidth(firstColumnValues, { min: 84, padding: 28 })}px`);
-      document.getElementById("step-2").style.setProperty("--step-2-data-column-width", `${measureTextWidth(dataColumnValues, { min: 72, padding: 28 })}px`);
+      const firstColumnWidth = 160;
+      const dataColumnCount = Math.max(quarterCount, 1);
+      const availableWidth = Math.max(window.innerWidth - 96 - firstColumnWidth, dataColumnCount * 90);
+      const dataColumnWidth = Math.max(90, availableWidth / dataColumnCount);
+      document.getElementById("step-2").style.setProperty("--step-2-first-column-width", `${firstColumnWidth}px`);
+      document.getElementById("step-2").style.setProperty("--step-2-data-column-width", `${dataColumnWidth}px`);
     };
 
     const bindInputs = () => {
