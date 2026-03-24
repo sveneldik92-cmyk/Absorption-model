@@ -570,14 +570,15 @@
 
     #step-5 .compact-table th,
     #step-5 .compact-table td {
-      min-width: 15px;
+      min-width: 21px;
       background: var(--table-white);
       color: var(--table-white-text);
+      font-size: 0.64rem;
     }
 
     #step-5 .compact-table th:first-child,
     #step-5 .compact-table td:first-child {
-      min-width: 20px;
+      min-width: 40px;
       white-space: normal;
       word-break: break-word;
       background: var(--table-white);
@@ -599,7 +600,10 @@
     #step-5 input[type="number"],
     #step-5 select {
       width: auto;
-      min-width: 6ch;
+      min-width: 3ch;
+      max-width: 3ch;
+      font-size: 0.75rem;
+      padding-inline: 0.1rem;
     }
 
     #step-2 .compact-table thead th,
@@ -851,7 +855,7 @@
           </label>
           <label>
             Trainer time needed per trainee (%)
-            <input type="number" id="trainer-time-per-trainee" min="1" max="100" step="1" value="33" />
+            <input type="number" id="trainer-time-per-trainee" min="1" max="1000" step="1" value="333" />
             <span class="note" id="trainer-capacity-explainer"></span>
           </label>
         </div>
@@ -984,7 +988,7 @@
       },
       {
         title: "Trainees that can be trained (capacity)",
-        note: "Capacity is based on eligible trainers and trainer time needed per trainee. Red cells indicate capacity exceeds training-adjusted new team members.",
+        note: "Capacity is based on eligible trainers and trainer time needed per trainee. Red cells indicate capacity is below training-adjusted new team members.",
         bodyId: "trainer-body",
         tableId: "trainer-table",
       },
@@ -1577,23 +1581,51 @@
 
     const expandActualHeadcountToMonthly = (parsedActualHeadcount, staffedTeams) => {
       const fallbackByTeam = Object.fromEntries(
-        staffedTeams.map((team) => [team.name, aggregateQuarterValues(team.totalMonthlyHeadcount)])
+        staffedTeams.map((team) => [team.name, team.totalMonthlyHeadcount])
       );
       return Object.fromEntries(
         parsedActualHeadcount.rows.map((row) => {
-          const fallbackQuarterValues = fallbackByTeam[row.name] || [];
+          const fallbackMonthlyValues = fallbackByTeam[row.name] || [];
           const quarterValues = getQuarterLabels().map((_, index) => {
             const raw = row.values[index];
             if (raw === "" || raw === null || raw === undefined) {
-              return fallbackQuarterValues[index] ?? null;
+              return null;
             }
             const parsed = Number(raw);
-            return Number.isFinite(parsed) ? parsed : fallbackQuarterValues[index] ?? null;
+            return Number.isFinite(parsed) ? parsed : null;
           });
-          return [row.name, expandQuarterRatesToMonthly(quarterValues)];
+          const expandedQuarterOverrides = expandQuarterRatesToMonthly(quarterValues);
+          const monthlyValues = expandedQuarterOverrides.map((value, monthIndex) => {
+            if (Number.isFinite(value)) {
+              return value;
+            }
+            return fallbackMonthlyValues[monthIndex] ?? null;
+          });
+          return [row.name, monthlyValues];
         })
       );
     };
+
+    const applyActualHeadcountToStaffing = (staffedTeams, actualHeadcountMonthlyByTeam) =>
+      staffedTeams.map((team) => {
+        const actualMonthly = actualHeadcountMonthlyByTeam[team.name] || [];
+        const totalMonthlyHeadcount = team.totalMonthlyHeadcount.map((modelledValue, monthIndex) => {
+          const actual = actualMonthly[monthIndex];
+          return Number.isFinite(actual) ? actual : modelledValue;
+        });
+        const hiresMonthly = totalMonthlyHeadcount.map((headcount, monthIndex) => {
+          const previous = monthIndex === 0 ? team.current : totalMonthlyHeadcount[monthIndex - 1];
+          if (!Number.isFinite(headcount) || !Number.isFinite(previous)) {
+            return 0;
+          }
+          return Math.max(headcount - previous, 0);
+        });
+        return {
+          ...team,
+          hiresMonthly,
+          totalMonthlyHeadcount,
+        };
+      });
 
     const computeTrainerTimeline = (teams, trainingCurve, internalHiringMonthlyByTeam, actualHeadcountMonthlyByTeam, trainerTimePerTraineePercent) =>
       teams.map((team) => {
@@ -1820,11 +1852,14 @@
       `;
 
       const bodyRows = teams.map((team) => {
-        const cells = getTimeSeries(team.newnessMonthly).map((value) => {
+        const capacityValues = getTimeSeries(team.traineeCapacityMonthly || []);
+        const cells = getTimeSeries(team.newnessMonthly).map((value, index) => {
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
-          return `<td>${formatNumber(value, 1)}</td>`;
+          const capacity = capacityValues.length ? capacityValues[index] : null;
+          const isOverCapacity = Number.isFinite(capacity) && value > capacity;
+          return `<td class="${isOverCapacity ? "heat-alert" : ""}">${formatNumber(value, 1)}</td>`;
         });
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
@@ -1853,8 +1888,8 @@
             return "<td>-</td>";
           }
           const demand = demandValues[index];
-          const isOverCapacity = Number.isFinite(demand) && value > demand;
-          return `<td class="${isOverCapacity ? "heat-alert" : ""}">${formatNumber(value, 1)}</td>`;
+          const isUnderCapacity = Number.isFinite(demand) && value < demand;
+          return `<td class="${isUnderCapacity ? "heat-alert" : ""}">${formatNumber(value, 1)}</td>`;
         });
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
@@ -2094,13 +2129,14 @@
       const monthlyInternalHiring = expandInternalHiringToMonthly(getQuarterInternalHiringByName(quarterInternalHiring));
 
       const staffedTeams = computeMonthlyStaffing(teams, productLevels, monthlyProducts);
-      updateStaffingSummary(staffedTeams);
 
       const trainingCurve = parseTrainingCurve();
-      const proficiencyTeams = computeProficiencyTimeline(staffedTeams, trainingCurve, monthlyInternalHiring);
+      const actualHeadcountMonthly = expandActualHeadcountToMonthly(actualHeadcount, staffedTeams);
+      const actualizedStaffedTeams = applyActualHeadcountToStaffing(staffedTeams, actualHeadcountMonthly);
+      updateStaffingSummary(actualizedStaffedTeams);
+      const proficiencyTeams = computeProficiencyTimeline(actualizedStaffedTeams, trainingCurve, monthlyInternalHiring);
       const trainerTimePerTraineePercent = Number(trainerTimePerTraineeInput.value) || 0;
       updateTrainerCapacityExplainer();
-      const actualHeadcountMonthly = expandActualHeadcountToMonthly(actualHeadcount, staffedTeams);
       const teamsWithTrainers = computeTrainerTimeline(
         proficiencyTeams,
         trainingCurve,
