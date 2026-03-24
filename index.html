@@ -237,10 +237,10 @@
       background: transparent;
     }
 
-    .heat-alert {
-      background: rgba(239, 68, 68, 0.28);
-      color: #7f1d1d;
-      font-weight: 700;
+    .capacity-alert {
+      background: rgba(248, 113, 113, 0.32);
+      color: #991b1b;
+      box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.55);
     }
 
     .chart-wrapper {
@@ -516,6 +516,42 @@
       width: 6ch;
       min-width: 6ch;
       max-width: 100%;
+    }
+
+    #step-4b {
+      --step-4b-first-column-width: 132px;
+      --step-4b-data-column-width: 58px;
+      --step-4b-table-font-size: 0.64rem;
+    }
+
+    #step-4b .compact-table {
+      width: 100%;
+      min-width: 100%;
+      table-layout: fixed;
+      font-size: var(--step-4b-table-font-size);
+    }
+
+    #step-4b .compact-table th,
+    #step-4b .compact-table td {
+      min-width: var(--step-4b-data-column-width);
+      width: var(--step-4b-data-column-width);
+      padding: 2px;
+      font-size: inherit;
+    }
+
+    #step-4b .compact-table th:first-child,
+    #step-4b .compact-table td:first-child {
+      min-width: var(--step-4b-first-column-width);
+      width: var(--step-4b-first-column-width);
+    }
+
+    #step-4b .compact-table input[type="number"] {
+      width: 5ch;
+      min-width: 5ch;
+      max-width: 100%;
+      padding-inline: 0.15rem;
+      font-size: inherit;
+      text-align: center;
     }
 
     .bulk-fill-controls {
@@ -1086,6 +1122,7 @@
     const teamTable = document.getElementById("team-table");
     const trainingTable = document.getElementById("training-table");
     const step2Section = document.getElementById("step-2");
+    const step4bSection = document.getElementById("step-4b");
     const quarterlyRateHead = document.querySelector("#quarterly-rate-table thead");
     const quarterlyRateBody = document.querySelector("#quarterly-rate-table tbody");
     const internalHiringHead = document.querySelector("#internal-hiring-table thead");
@@ -1419,6 +1456,15 @@
       step2Section.style.setProperty("--step-2-first-column-width", `${firstColumnWidth}px`);
       step2Section.style.setProperty("--step-2-data-column-width", `${dataColumnWidth}px`);
       step2Section.style.setProperty("--step-2-table-font-size", `${tableFontSize}rem`);
+
+      if (step4bSection) {
+        const step4bFirstColumnWidth = Math.min(140, Math.max(100, Math.round(availableWidth * 0.16)));
+        const step4bDataColumnWidth = Math.min(62, Math.max(52, Math.floor(remainingWidth / Math.max(quarterCount, 1))));
+        const step4bTableFontSize = step4bDataColumnWidth < 56 ? 0.6 : 0.64;
+        step4bSection.style.setProperty("--step-4b-first-column-width", `${step4bFirstColumnWidth}px`);
+        step4bSection.style.setProperty("--step-4b-data-column-width", `${step4bDataColumnWidth}px`);
+        step4bSection.style.setProperty("--step-4b-table-font-size", `${step4bTableFontSize}rem`);
+      }
     };
 
     const parseTeams = () => {
@@ -1859,7 +1905,7 @@
           }
           const capacity = capacityValues.length ? capacityValues[index] : null;
           const isOverCapacity = Number.isFinite(capacity) && value > capacity;
-          return `<td class="${isOverCapacity ? "heat-alert" : ""}">${formatNumber(value, 1)}</td>`;
+          return `<td class="${isOverCapacity ? "capacity-alert" : ""}">${formatNumber(value, 1)}</td>`;
         });
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
@@ -1889,7 +1935,7 @@
           }
           const demand = demandValues[index];
           const isUnderCapacity = Number.isFinite(demand) && value < demand;
-          return `<td class="${isUnderCapacity ? "heat-alert" : ""}">${formatNumber(value, 1)}</td>`;
+          return `<td class="${isUnderCapacity ? "capacity-alert" : ""}">${formatNumber(value, 1)}</td>`;
         });
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
@@ -2641,7 +2687,7 @@
           name: row.name,
           values: row.values
             .slice(0, quarterCount)
-            .concat(Array(Math.max(quarterCount - row.values.length, 0)).fill(row.values[row.values.length - 1] ?? "")),
+            .concat(Array(Math.max(quarterCount - row.values.length, 0)).fill("")),
         })),
       };
       buildQuarterlyRateTable(resizedRates);
