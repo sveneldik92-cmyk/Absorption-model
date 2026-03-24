@@ -307,6 +307,10 @@
       margin-top: 12px;
     }
 
+    #step-2 .section-actions {
+      margin-bottom: 20px;
+    }
+
     .section-actions button {
       border: 1px solid var(--border-strong);
       background: #312e81;
@@ -579,6 +583,18 @@
       background: var(--table-white);
     }
 
+    #step-5 .compact-table td.heat-low {
+      background: rgba(239, 68, 68, 0.18);
+    }
+
+    #step-5 .compact-table td.heat-mid {
+      background: rgba(245, 158, 11, 0.18);
+    }
+
+    #step-5 .compact-table td.heat-high {
+      background: transparent;
+    }
+
 
     #step-5 input[type="number"],
     #step-5 select {
@@ -595,9 +611,9 @@
 
 
     #step-2 .table-scroll {
-      max-width: calc(100% - 16px);
-      margin: 0 auto;
-      padding: 0 8px;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
     }
 
 
@@ -777,7 +793,7 @@
 
   <section class="section" id="step-4b">
     <div class="section-header">
-      <h2>4b. Actual Headcount by Team &amp; Quarter</h2>
+      <h2>5. Actual Headcount by Team &amp; Quarter</h2>
       <button class="collapse-button" type="button" data-target="step-4b">Collapse</button>
     </div>
     <div class="section-body">
@@ -795,7 +811,7 @@
 
   <section class="section" id="step-5">
     <div class="section-header">
-      <h2>5. Team Proficiency Over Time</h2>
+      <h2>6. Team Proficiency Over Time</h2>
       <button class="collapse-button" type="button" data-target="step-5">Collapse</button>
     </div>
     <div class="section-body">
@@ -834,8 +850,9 @@
             <input type="number" id="experience-band-upper" min="0" step="1" value="12" />
           </label>
           <label>
-            Trainer time per trainee during normal operation (%)
+            Trainer time needed per trainee (%)
             <input type="number" id="trainer-time-per-trainee" min="1" max="100" step="1" value="33" />
+            <span class="note" id="trainer-capacity-explainer"></span>
           </label>
         </div>
         <div class="meta-row">
@@ -858,13 +875,13 @@
 
   <section class="section" id="step-6">
     <div class="section-header">
-      <h2>6. How Table 5 Is Calculated (Deep Dive)</h2>
+      <h2>7. How Table 6 Is Calculated (Deep Dive)</h2>
       <button class="collapse-button" type="button" data-target="step-6">Collapse</button>
     </div>
     <div class="section-body">
       <p>
-        Table 5 shows the percentage of each team that is fully productive in every month across the selected quarter
-        timeline. The model builds that value in stages, using the inputs in Sections 1–4b.
+        Table 6 shows the percentage of each team that is fully productive in every month across the selected quarter
+        timeline. The model builds that value in stages, using the inputs in Sections 1–5.
       </p>
       <ol>
         <li>
@@ -903,10 +920,10 @@
           <div class="note">
             <em>Proficiency % = effective capacity ÷ total headcount</em>
           </div>
-          The conditional formatting thresholds in Section 5 (red/orange) are then applied to these percentages.
+          The conditional formatting thresholds in Section 6 (red/orange) are then applied to these percentages.
         </li>
         <li>
-          <strong>Estimate trainee capacity.</strong> A trainer is someone already in the team before the timeline starts, or a hire cohort that has reached 100% proficiency. The actual headcount entered in Section 4b caps how many trainers can be present in the team. The percentage input in Section 5 defines how much trainer time one trainee requires in normal operations; trainee capacity is then estimated as <em>trainers × (100 ÷ trainer-time-per-trainee%)</em>.
+          <strong>Estimate trainee capacity.</strong> A trainer is someone already in the team before the timeline starts, or a hire cohort that has reached 100% proficiency. The actual headcount entered in Section 5 caps how many trainers can be present in the team. The percentage input in Section 6 defines how much trainer time one trainee requires in normal operations; trainee capacity is then estimated as <em>trainers × (100 ÷ trainer-time-per-trainee%)</em>.
         </li>
       </ol>
     </div>
@@ -967,7 +984,7 @@
       },
       {
         title: "Trainees that can be trained (capacity)",
-        note: "Capacity is based on eligible trainers and trainer time per trainee. Red cells indicate capacity exceeds training-adjusted new team members.",
+        note: "Capacity is based on eligible trainers and trainer time needed per trainee. Red cells indicate capacity exceeds training-adjusted new team members.",
         bodyId: "trainer-body",
         tableId: "trainer-table",
       },
@@ -1082,6 +1099,7 @@
     const experienceBandLowerInput = document.getElementById("experience-band-lower");
     const experienceBandUpperInput = document.getElementById("experience-band-upper");
     const trainerTimePerTraineeInput = document.getElementById("trainer-time-per-trainee");
+    const trainerCapacityExplainer = document.getElementById("trainer-capacity-explainer");
     const viewToggle = document.getElementById("view-toggle");
     const timeColumnToggle = document.getElementById("time-column-toggle");
     const teamSizeTable = document.getElementById("team-size-table");
@@ -1722,6 +1740,19 @@
     const getTimeSeries = (values) =>
       timeColumnView === "quarter" ? aggregateQuarterValues(values) : values;
 
+    const updateTrainerCapacityExplainer = () => {
+      if (!trainerCapacityExplainer) {
+        return;
+      }
+      const trainerTimePercent = Number(trainerTimePerTraineeInput.value);
+      if (!Number.isFinite(trainerTimePercent) || trainerTimePercent <= 0) {
+        trainerCapacityExplainer.textContent = "";
+        return;
+      }
+      const traineesPerTrainer = 100 / trainerTimePercent;
+      trainerCapacityExplainer.textContent = `At ${formatNumber(trainerTimePercent, 0)}%, 1 trainer can support about ${formatNumber(traineesPerTrainer, 2)} trainee(s).`;
+    };
+
     const renderProficiencyTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
       const header = `
@@ -2068,6 +2099,7 @@
       const trainingCurve = parseTrainingCurve();
       const proficiencyTeams = computeProficiencyTimeline(staffedTeams, trainingCurve, monthlyInternalHiring);
       const trainerTimePerTraineePercent = Number(trainerTimePerTraineeInput.value) || 0;
+      updateTrainerCapacityExplainer();
       const actualHeadcountMonthly = expandActualHeadcountToMonthly(actualHeadcount, staffedTeams);
       const teamsWithTrainers = computeTrainerTimeline(
         proficiencyTeams,
