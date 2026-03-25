@@ -1139,6 +1139,12 @@
         tableId: "proficiency-absolute-table",
       },
       {
+        title: "Quarter-over-quarter team growth",
+        note: "Quarter-over-quarter growth = total team size for a quarter − total team size from the previous quarter.",
+        bodyId: "qoq-growth-body",
+        tableId: "qoq-growth-table",
+      },
+      {
         title: "Trainees that can be trained (capacity)",
         note: "Training capacity per month = eligible trainers × (100 ÷ trainer-time-per-trainee%). Red cells mean capacity < training-adjusted new team members.",
         bodyId: "trainer-body",
@@ -1288,6 +1294,7 @@
     const newnessLowFitTable = document.getElementById("newness-low-fit-table");
     const trainerTable = document.getElementById("trainer-table");
     const proficiencyAbsoluteTable = document.getElementById("proficiency-absolute-table");
+    const qoqGrowthTable = document.getElementById("qoq-growth-table");
     const experienceBandTable = document.getElementById("experience-band-table");
     const proficiencyTable = document.getElementById("proficiency-table");
     const proficiencyChart = document.getElementById("proficiency-chart");
@@ -2543,6 +2550,39 @@
       proficiencyAbsoluteTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
     };
 
+    const renderQuarterOverQuarterGrowthTable = (teams) => {
+      const labels = getQuarterLabels();
+      const header = `
+        <table class="proficiency-table compact-table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      const bodyRows = teams.map((team) => {
+        const quarterHeadcount = aggregateQuarterValues(team.totalMonthlyHeadcount || []);
+        const quarterGrowth = quarterHeadcount.map((value, index) => {
+          if (index === 0 || !Number.isFinite(value) || !Number.isFinite(quarterHeadcount[index - 1])) {
+            return null;
+          }
+          return value - quarterHeadcount[index - 1];
+        });
+        const cells = quarterGrowth.map((value) => {
+          if (!Number.isFinite(value)) {
+            return "<td>-</td>";
+          }
+          return `<td>${value > 0 ? "+" : ""}${formatNumber(value, 1)}</td>`;
+        });
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
+      });
+
+      qoqGrowthTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+    };
+
     const renderBudgetChangeTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
       const header = `
@@ -2723,7 +2763,7 @@
 
     const updateViewToggle = () => {
       const isChart = viewToggle.value === "chart";
-      [teamSizeTable, newnessTable, trainerTable, experienceBandTable, proficiencyTable, budgetChangeTable, untrainedVsTrainedTable].forEach((table) => {
+      [teamSizeTable, newnessTable, trainerTable, experienceBandTable, proficiencyTable, budgetChangeTable, untrainedVsTrainedTable, qoqGrowthTable].forEach((table) => {
         table.classList.toggle("hidden", isChart);
       });
       [teamSizeChart, newnessChart, proficiencyChart, budgetChangeChart, untrainedVsTrainedChart].forEach((chart) => {
@@ -2792,6 +2832,7 @@
       renderNewnessSplitTable(newnessHighFitTable, teamsWithExperienceBand, "newnessHighFitMonthly", quarterProducts);
       renderNewnessSplitTable(newnessLowFitTable, teamsWithExperienceBand, "newnessLowFitMonthly", quarterProducts);
       renderProficiencyAbsoluteTable(teamsWithExperienceBand, redThreshold, orangeThreshold, quarterProducts);
+      renderQuarterOverQuarterGrowthTable(teamsWithExperienceBand);
       renderExperienceBandTable(teamsWithExperienceBand, quarterProducts);
       renderProficiencyTable(teamsWithExperienceBand, redThreshold, orangeThreshold, quarterProducts);
       renderCharts(teamsWithExperienceBand, quarterProducts);
