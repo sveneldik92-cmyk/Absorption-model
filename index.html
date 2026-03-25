@@ -1647,37 +1647,86 @@
         };
       });
 
+    const removeFromCohorts = (cohorts, amount) => {
+      let remainingToRemove = Math.max(amount, 0);
+      for (const cohort of cohorts) {
+        if (remainingToRemove <= 0) {
+          break;
+        }
+        const removable = Math.min(cohort.size, remainingToRemove);
+        cohort.size -= removable;
+        remainingToRemove -= removable;
+      }
+      return cohorts.filter((cohort) => cohort.size > 0);
+    };
+
+    const getCohortRate = (cohort, trainingCurve, monthIndex) => {
+      if (cohort.kind === "base") {
+        return 1;
+      }
+      const trainingIndex = monthIndex - cohort.hireMonth;
+      const curve = cohort.kind === "high" ? trainingCurve.highFit : trainingCurve.lowFit;
+      return curve[trainingIndex] ?? 1;
+    };
+
+    const computeMonthlyCohortState = (team, trainingCurve, internalHiringMonthlyByTeam) => {
+      const internalHiringMonthly = internalHiringMonthlyByTeam[team.name] || [];
+      const targetHeadcounts = getMonthLabels().map((_, monthIndex) => {
+        const value = team.totalMonthlyHeadcount?.[monthIndex];
+        return Number.isFinite(value) ? Math.max(value, 0) : Math.max(team.current, 0);
+      });
+      let cohorts = [{ size: Math.max(team.current, 0), hireMonth: -1, kind: "base" }];
+      const monthlySnapshots = [];
+
+      targetHeadcounts.forEach((targetHeadcount, monthIndex) => {
+        const previousTotal = cohorts.reduce((sum, cohort) => sum + cohort.size, 0);
+        const headcountChange = targetHeadcount - previousTotal;
+
+        if (headcountChange > 0) {
+          const highFitShare = Math.min(Math.max(internalHiringMonthly[monthIndex] ?? 0, 0), 100) / 100;
+          const highFitHires = headcountChange * highFitShare;
+          const lowFitHires = headcountChange - highFitHires;
+          if (highFitHires > 0) {
+            cohorts.push({ size: highFitHires, hireMonth: monthIndex, kind: "high" });
+          }
+          if (lowFitHires > 0) {
+            cohorts.push({ size: lowFitHires, hireMonth: monthIndex, kind: "low" });
+          }
+        } else if (headcountChange < 0) {
+          cohorts = removeFromCohorts(cohorts, Math.abs(headcountChange));
+        }
+
+        const normalizedTotal = cohorts.reduce((sum, cohort) => sum + cohort.size, 0);
+        const effectiveCapacity = cohorts.reduce((sum, cohort) => (
+          sum + cohort.size * getCohortRate(cohort, trainingCurve, monthIndex)
+        ), 0);
+
+        const trainerCount = cohorts.reduce((sum, cohort) => {
+          const rate = getCohortRate(cohort, trainingCurve, monthIndex);
+          return rate >= 1 ? sum + cohort.size : sum;
+        }, 0);
+
+        monthlySnapshots.push({
+          totalHeadcount: normalizedTotal,
+          effectiveCapacity: Math.min(effectiveCapacity, normalizedTotal),
+          trainerCount,
+        });
+      });
+
+      return monthlySnapshots;
+    };
+
     const computeProficiencyTimeline = (teams, trainingCurve, internalHiringMonthlyByTeam) =>
       teams.map((team) => {
-        const totalMonthlyHeadcount = [];
-        const proficiencyMonthly = [];
-        const newnessMonthly = [];
-
-        for (let monthIndex = 0; monthIndex < getMonthLabels().length; monthIndex += 1) {
-          const totalHeadcount = Number.isFinite(team.totalMonthlyHeadcount?.[monthIndex])
-            ? team.totalMonthlyHeadcount[monthIndex]
-            : team.current;
-          let effectiveCapacity = team.current;
-
-          const internalHiringMonthly = internalHiringMonthlyByTeam[team.name] || [];
-          for (let hireMonth = 0; hireMonth <= monthIndex; hireMonth += 1) {
-            const hires = team.hiresMonthly[hireMonth] || 0;
-            const trainingIndex = monthIndex - hireMonth;
-            const quarterShare = internalHiringMonthly[hireMonth] ?? 0;
-            const highFitShare = Math.min(Math.max(quarterShare, 0), 100) / 100;
-            const highFitHires = hires * highFitShare;
-            const lowFitHires = hires - highFitHires;
-            const highFitRate = trainingCurve.highFit[trainingIndex] ?? 1;
-            const lowFitRate = trainingCurve.lowFit[trainingIndex] ?? 1;
-            effectiveCapacity += highFitHires * highFitRate + lowFitHires * lowFitRate;
-          }
-
-          const cappedEffectiveCapacity = Math.min(effectiveCapacity, totalHeadcount);
-          totalMonthlyHeadcount.push(totalHeadcount);
-          const proficiency = totalHeadcount === 0 ? 1 : cappedEffectiveCapacity / totalHeadcount;
-          proficiencyMonthly.push(proficiency);
-          newnessMonthly.push(Math.max(totalHeadcount - cappedEffectiveCapacity, 0));
-        }
+        const snapshots = computeMonthlyCohortState(team, trainingCurve, internalHiringMonthlyByTeam);
+        const totalMonthlyHeadcount = snapshots.map((snapshot) => snapshot.totalHeadcount);
+        const newnessMonthly = snapshots.map((snapshot) =>
+          Math.max(snapshot.totalHeadcount - snapshot.effectiveCapacity, 0)
+        );
+        const proficiencyMonthly = snapshots.map((snapshot, index) => {
+          const totalHeadcount = totalMonthlyHeadcount[index];
+          return totalHeadcount === 0 ? 1 : snapshot.effectiveCapacity / totalHeadcount;
+        });
 
         return {
           ...team,
@@ -1752,30 +1801,10 @@
       teams.map((team) => {
         const trainerMonthly = [];
         const traineeCapacityMonthly = [];
+        const snapshots = computeMonthlyCohortState(team, trainingCurve, internalHiringMonthlyByTeam);
 
         for (let monthIndex = 0; monthIndex < getMonthLabels().length; monthIndex += 1) {
-          let eligibleTrainers = team.current;
-          let trainees = 0;
-          const internalHiringMonthly = internalHiringMonthlyByTeam[team.name] || [];
-          for (let hireMonth = 0; hireMonth <= monthIndex; hireMonth += 1) {
-            const hires = team.hiresMonthly[hireMonth] || 0;
-            const trainingIndex = monthIndex - hireMonth;
-            const highFitShare = Math.min(Math.max(internalHiringMonthly[hireMonth] ?? 0, 0), 100) / 100;
-            const highFitHires = hires * highFitShare;
-            const lowFitHires = hires - highFitHires;
-            const highFitRate = trainingCurve.highFit[trainingIndex] ?? 1;
-            const lowFitRate = trainingCurve.lowFit[trainingIndex] ?? 1;
-            if (highFitRate >= 1) {
-              eligibleTrainers += highFitHires;
-            } else {
-              trainees += highFitHires;
-            }
-            if (lowFitRate >= 1) {
-              eligibleTrainers += lowFitHires;
-            } else {
-              trainees += lowFitHires;
-            }
-          }
+          const eligibleTrainers = snapshots[monthIndex]?.trainerCount ?? 0;
           const actualHeadcount = actualHeadcountMonthlyByTeam[team.name]?.[monthIndex];
           const cappedTrainers = Number.isFinite(actualHeadcount)
             ? Math.min(eligibleTrainers, actualHeadcount)
