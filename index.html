@@ -1902,7 +1902,9 @@
         const untrainedVsTrainedMonthlyAdjusted = [];
         const proficiencyAbsoluteAdjustedMonthly = [];
         const snapshots = computeMonthlyCohortState(team, trainingCurve, internalHiringMonthlyByTeam);
-        const baseNewnessMonthly = team.newnessMonthly || [];
+        const baseNewnessMonthly = (team.hiresMonthly || []).map((value) =>
+          Number.isFinite(value) ? Math.max(value, 0) : 0
+        );
 
         for (let monthIndex = 0; monthIndex < getMonthLabels().length; monthIndex += 1) {
           const eligibleTrainers = snapshots[monthIndex]?.trainerCount ?? 0;
