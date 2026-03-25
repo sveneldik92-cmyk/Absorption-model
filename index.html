@@ -1094,7 +1094,7 @@
             <em>Total training-adjusted newness = high-fit training-adjusted newness + low-fit training-adjusted newness</em><br />
             <em>Absolute proficiency = total headcount − min(total headcount, training-adjusted newness)</em>
           </div>
-          Capacity is treated as a hard comparison metric: cells are highlighted red when <em>training-adjusted newness &gt; trainee capacity</em>. For the effective team members table, conditional coloring is now applied only when effective team members are below required monthly staffing from Sections 1–2 (after quarter-to-month conversion), with the Section 6 red/orange thresholds determining severity.
+          Capacity is treated as a hard comparison metric: cells are highlighted red when <em>untrained team members &gt; training capacity</em>. For the effective team members table, conditional coloring is now applied only when effective team members are below required monthly staffing from Sections 1–2 (after quarter-to-month conversion), with the Section 6 red/orange thresholds determining severity.
         </li>
       </ol>
     </div>
@@ -1137,7 +1137,7 @@
     ];
     const STEP_5_METRICS = [
       {
-        title: "Total team size over time",
+        title: "Total team size [FTEs]",
         note: "Monthly headcount after actual-headcount overrides: previous month total + monthly hires − monthly exits (if any).",
         bodyId: "team-size-body",
         tableId: "team-size-table",
@@ -1146,37 +1146,37 @@
         first: true,
       },
       {
-        title: "Quarter-over-quarter team growth",
+        title: "Quarter-over-quarter team growth [FTEs]",
         note: "Quarter-over-quarter growth = total team size for a quarter − total team size from the previous quarter.",
         bodyId: "qoq-growth-body",
         tableId: "qoq-growth-table",
       },
       {
-        title: "Effective team members (trainer-capacity adjusted)",
+        title: "Effective team members (trainer-capacity adjusted) [FTEs]",
         note: "Effective team members in absolute count: total headcount − min(total headcount, training-adjusted newness). Cells are highlighted only when this value is below required monthly staffing from Sections 1–2.",
         bodyId: "proficiency-absolute-body",
         tableId: "proficiency-absolute-table",
       },
       {
-        title: "Required effective team size over time",
+        title: "Required effective team size [FTEs]",
         note: "Monthly required effective team size translated from Sections 1–2 quarter rates and mapped to months in each quarter.",
         bodyId: "required-proficient-body",
         tableId: "required-proficient-table",
       },
       {
-        title: "Effective team member gap vs required",
+        title: "Effective team member gap vs required [FTEs]",
         note: "Effective team members − required effective team size. Negative values are shown in red.",
         bodyId: "proficiency-gap-body",
         tableId: "proficiency-gap-table",
       },
       {
-        title: "Trainees that can be trained (capacity)",
-        note: "Training capacity per month = eligible trainers × (100 ÷ trainer-time-per-trainee%). Red cells mean capacity < training-adjusted new team members.",
+        title: "Training capacity [FTEs]",
+        note: "Training capacity per month = eligible trainers × (100 ÷ trainer-time-per-trainee%). Red cells mean capacity < untrained team members.",
         bodyId: "trainer-body",
         tableId: "trainer-table",
       },
       {
-        title: "Training-adjusted new team members",
+        title: "Untrained team members [FTEs]",
         note: "Untrained equivalent demand in absolute people: Σ(cohort size × (1 − cohort proficiency by month-since-hire)). Team shrinkage removes newest cohorts first.",
         bodyId: "newness-body",
         tableId: "newness-table",
@@ -1184,25 +1184,25 @@
         canvasId: "newness-canvas",
       },
       {
-        title: "Training-adjusted internal hires (high-fit)",
+        title: "Untrained internal hires (high-fit) [FTEs]",
         note: "Untrained equivalent demand from high-fit cohorts only: Σ(high-fit cohort size × (1 − high-fit cohort proficiency by month-since-hire)).",
         bodyId: "newness-high-fit-body",
         tableId: "newness-high-fit-table",
       },
       {
-        title: "Training-adjusted non-internal hires (low-fit)",
+        title: "Untrained non-internal hires (low-fit) [FTEs]",
         note: "Untrained equivalent demand from low-fit cohorts only: Σ(low-fit cohort size × (1 − low-fit cohort proficiency by month-since-hire)).",
         bodyId: "newness-low-fit-body",
         tableId: "newness-low-fit-table",
       },
       {
-        title: "Team members within selected experience band (absolute)",
+        title: "Team members within selected experience band [FTEs]",
         note: "Count of hires whose tenure is within the selected month range [lower, upper], inclusive, for each calendar month.",
         bodyId: "experience-band-body",
         tableId: "experience-band-table",
       },
       {
-        title: "Team proficiency over time",
+        title: "Team proficiency [%]",
         note: "Monthly proficiency % = absolute proficient team members ÷ total team size.",
         bodyId: "proficiency-body",
         tableId: "proficiency-table",
@@ -1210,16 +1210,16 @@
         canvasId: "chart-canvas",
       },
       {
-        title: "Share of team still in training",
-        note: "Untrained share = training-adjusted new team members ÷ total team size.",
+        title: "Share of team still in training [%]",
+        note: "Untrained share = untrained team members ÷ total team size.",
         bodyId: "budget-change-body",
         tableId: "budget-change-table",
         chartId: "budget-change-chart",
         canvasId: "budget-change-canvas",
       },
       {
-        title: "Untrained vs trained population",
-        note: "Training burden ratio = training-adjusted new team members ÷ absolute proficient team members.",
+        title: "Untrained vs trained population [%]",
+        note: "Training burden ratio = untrained team members ÷ absolute proficient team members.",
         bodyId: "untrained-vs-trained-body",
         tableId: "untrained-vs-trained-table",
         chartId: "untrained-vs-trained-chart",
@@ -2169,21 +2169,21 @@
       return [
         {
           key: "teamSize",
-          label: "Total team size",
+          label: "Total team size [FTEs]",
           axis: "y",
           values: team.totalMonthlyHeadcount || [],
           format: (value) => formatNumber(value, 1),
         },
         {
           key: "qoqGrowth",
-          label: "Quarter-over-quarter team growth",
+          label: "Quarter-over-quarter team growth [FTEs]",
           axis: "y",
           values: qoqGrowth,
           format: (value) => `${value > 0 ? "+" : ""}${formatNumber(value, 1)}`,
         },
         {
           key: "absoluteProficiency",
-          label: "Effective team members",
+          label: "Effective team members (trainer-capacity adjusted) [FTEs]",
           axis: "y",
           values: team.proficiencyAbsoluteAdjustedMonthly || [],
           format: (value) => formatNumber(value, 1),
@@ -2204,14 +2204,14 @@
         },
         {
           key: "requiredProficient",
-          label: "Required effective team size",
+          label: "Required effective team size [FTEs]",
           axis: "y",
           values: team.requiredMonthlyHeadcount || [],
           format: (value) => formatNumber(value, 1),
         },
         {
           key: "proficiencyGap",
-          label: "Effective team member gap (effective − required)",
+          label: "Effective team member gap vs required [FTEs]",
           axis: "y",
           values: (team.proficiencyAbsoluteAdjustedMonthly || []).map((value, index) => {
             const required = team.requiredMonthlyHeadcount?.[index];
@@ -2225,7 +2225,7 @@
         },
         {
           key: "trainable",
-          label: "Trainees that can be trained (capacity)",
+          label: "Training capacity [FTEs]",
           axis: "y",
           values: capacity,
           format: (value) => formatNumber(value, 1),
@@ -2236,7 +2236,7 @@
         },
         {
           key: "adjustedNew",
-          label: "Training-adjusted new team members",
+          label: "Untrained team members [FTEs]",
           axis: "y",
           values: adjustedNewness,
           format: (value) => formatNumber(value, 1),
@@ -2247,21 +2247,21 @@
         },
         {
           key: "adjustedNewHighFit",
-          label: "Training-adjusted internal hires (high-fit)",
+          label: "Untrained internal hires (high-fit) [FTEs]",
           axis: "y",
           values: adjustedNewnessHighFit,
           format: (value) => formatNumber(value, 1),
         },
         {
           key: "adjustedNewLowFit",
-          label: "Training-adjusted non-internal hires (low-fit)",
+          label: "Untrained non-internal hires (low-fit) [FTEs]",
           axis: "y",
           values: adjustedNewnessLowFit,
           format: (value) => formatNumber(value, 1),
         },
         {
           key: "proficiencyPct",
-          label: "Team proficiency (%)",
+          label: "Team proficiency [%]",
           axis: "y1",
           values: proficiencyPct,
           format: (value) => `${formatNumber(value * 100, 1)}%`,
@@ -2269,7 +2269,7 @@
         },
         {
           key: "trainingSharePct",
-          label: "Share still in training (%)",
+          label: "Share of team still in training [%]",
           axis: "y1",
           values: trainingShare,
           format: (value) => `${formatNumber(value * 100, 1)}%`,
@@ -2277,7 +2277,7 @@
         },
         {
           key: "untrainedVsTrainedPct",
-          label: "Untrained vs trained (%)",
+          label: "Untrained vs trained population [%]",
           axis: "y1",
           values: untrainedVsTrainedPct,
           format: (value) => `${formatNumber(value * 100, 1)}%`,
