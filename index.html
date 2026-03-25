@@ -331,6 +331,11 @@
       font-weight: 700;
     }
 
+    .negative-gap {
+      color: #ef4444;
+      font-weight: 700;
+    }
+
     .focus-chart {
       background: #ffffff;
       border: 1px solid #cbd5e1;
@@ -1133,16 +1138,22 @@
         first: true,
       },
       {
+        title: "Team proficiency (absolute, trainer-capacity adjusted)",
+        note: "Productive team members in absolute count: total headcount − min(total headcount, training-adjusted newness). Cells are highlighted only when this value is below required monthly staffing from Sections 1–2.",
+        bodyId: "proficiency-absolute-body",
+        tableId: "proficiency-absolute-table",
+      },
+      {
         title: "Required proficient team size over time",
         note: "Monthly required proficient team size translated from Sections 1–2 quarter rates and mapped to months in each quarter.",
         bodyId: "required-proficient-body",
         tableId: "required-proficient-table",
       },
       {
-        title: "Team proficiency (absolute, trainer-capacity adjusted)",
-        note: "Productive team members in absolute count: total headcount − min(total headcount, training-adjusted newness). Cells are highlighted only when this value is below required monthly staffing from Sections 1–2.",
-        bodyId: "proficiency-absolute-body",
-        tableId: "proficiency-absolute-table",
+        title: "Proficiency gap vs required",
+        note: "Absolute proficient team members − required proficient team size. Negative values are shown in red.",
+        bodyId: "proficiency-gap-body",
+        tableId: "proficiency-gap-table",
       },
       {
         title: "Quarter-over-quarter team growth",
@@ -1294,6 +1305,7 @@
     const teamFocusPanel = document.getElementById("team-focus-panel");
     const teamSizeTable = document.getElementById("team-size-table");
     const requiredProficientTable = document.getElementById("required-proficient-table");
+    const proficiencyGapTable = document.getElementById("proficiency-gap-table");
     const budgetChangeTable = document.getElementById("budget-change-table");
     const untrainedVsTrainedTable = document.getElementById("untrained-vs-trained-table");
     const newnessTable = document.getElementById("newness-table");
@@ -2154,20 +2166,6 @@
           format: (value) => formatNumber(value, 1),
         },
         {
-          key: "requiredProficient",
-          label: "Required proficient team size",
-          axis: "y",
-          values: team.requiredMonthlyHeadcount || [],
-          format: (value) => formatNumber(value, 1),
-        },
-        {
-          key: "qoqGrowth",
-          label: "Quarter-over-quarter team growth",
-          axis: "y",
-          values: qoqGrowth,
-          format: (value) => `${value > 0 ? "+" : ""}${formatNumber(value, 1)}`,
-        },
-        {
           key: "absoluteProficiency",
           label: "Absolute proficient team members",
           axis: "y",
@@ -2187,6 +2185,34 @@
             }
             return "";
           },
+        },
+        {
+          key: "requiredProficient",
+          label: "Required proficient team size",
+          axis: "y",
+          values: team.requiredMonthlyHeadcount || [],
+          format: (value) => formatNumber(value, 1),
+        },
+        {
+          key: "proficiencyGap",
+          label: "Proficiency gap (absolute − required)",
+          axis: "y",
+          values: (team.proficiencyAbsoluteAdjustedMonthly || []).map((value, index) => {
+            const required = team.requiredMonthlyHeadcount?.[index];
+            if (!Number.isFinite(value) || !Number.isFinite(required)) {
+              return null;
+            }
+            return value - required;
+          }),
+          format: (value) => formatNumber(value, 1),
+          severity: (value) => (Number.isFinite(value) && value < 0 ? "red" : ""),
+        },
+        {
+          key: "qoqGrowth",
+          label: "Quarter-over-quarter team growth",
+          axis: "y",
+          values: qoqGrowth,
+          format: (value) => `${value > 0 ? "+" : ""}${formatNumber(value, 1)}`,
         },
         {
           key: "trainable",
@@ -2470,6 +2496,39 @@
       });
 
       requiredProficientTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+    };
+
+    const renderProficiencyGapTable = (teams, quarterRates) => {
+      if (!proficiencyGapTable) {
+        return;
+      }
+      const labels = getTimeLabels(quarterRates);
+      const header = `
+        <table class="proficiency-table compact-table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      const bodyRows = teams.map((team) => {
+        const requiredValues = getTimeSeries(team.requiredMonthlyHeadcount || []);
+        const absoluteValues = getTimeSeries(team.proficiencyAbsoluteAdjustedMonthly || []);
+        const cells = absoluteValues.map((value, index) => {
+          const required = requiredValues[index];
+          if (!Number.isFinite(value) || !Number.isFinite(required)) {
+            return "<td>-</td>";
+          }
+          const gap = value - required;
+          return `<td class="${gap < 0 ? "negative-gap" : ""}">${formatNumber(gap, 1)}</td>`;
+        });
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
+      });
+
+      proficiencyGapTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
     };
 
     const renderNewnessTable = (teams, quarterRates) => {
@@ -2895,15 +2954,16 @@
 
       renderFocusedTeamPanel(teamsWithExperienceBand, quarterProducts, focusedThresholds);
       renderHeadcountTable(teamsWithExperienceBand, quarterProducts);
+      renderProficiencyAbsoluteTable(teamsWithExperienceBand, redThreshold, orangeThreshold, quarterProducts);
       renderRequiredProficientTable(teamsWithExperienceBand, quarterProducts);
+      renderProficiencyGapTable(teamsWithExperienceBand, quarterProducts);
+      renderQuarterOverQuarterGrowthTable(teamsWithExperienceBand);
       renderBudgetChangeTable(teamsWithExperienceBand, newHireRedThreshold, newHireOrangeThreshold, quarterProducts);
       renderUntrainedVsTrainedTable(teamsWithExperienceBand, newHireRedThreshold, newHireOrangeThreshold, quarterProducts);
       renderTrainerTable(teamsWithExperienceBand, quarterProducts);
       renderNewnessTable(teamsWithExperienceBand, quarterProducts);
       renderNewnessSplitTable(newnessHighFitTable, teamsWithExperienceBand, "newnessHighFitMonthly", quarterProducts);
       renderNewnessSplitTable(newnessLowFitTable, teamsWithExperienceBand, "newnessLowFitMonthly", quarterProducts);
-      renderProficiencyAbsoluteTable(teamsWithExperienceBand, redThreshold, orangeThreshold, quarterProducts);
-      renderQuarterOverQuarterGrowthTable(teamsWithExperienceBand);
       renderExperienceBandTable(teamsWithExperienceBand, quarterProducts);
       renderProficiencyTable(teamsWithExperienceBand, redThreshold, orangeThreshold, quarterProducts);
       renderCharts(teamsWithExperienceBand, quarterProducts);
