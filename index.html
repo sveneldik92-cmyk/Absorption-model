@@ -301,6 +301,14 @@
       color: #0f172a;
     }
 
+    .focus-time-header {
+      cursor: pointer;
+    }
+
+    .focus-time-header:hover {
+      background: #dbeafe;
+    }
+
     .focus-metric-hint {
       color: #475569;
       font-size: 0.8rem;
@@ -840,8 +848,8 @@
       <table id="team-table"></table>
       <div class="section-actions">
         <button type="button" id="export-json">Export JSON</button>
-        <button type="button" id="import-csv">Import CSV</button>
-        <input type="file" id="csv-file" accept=".csv" />
+        <button type="button" id="import-json">Import JSON</button>
+        <input type="file" id="json-file" accept=".json,application/json" />
         <button type="button" id="add-team">Add row</button>
         <button type="button" id="remove-team">Remove row</button>
         <button type="button" id="add-level">Add column</button>
@@ -1327,8 +1335,8 @@
     const untrainedVsTrainedChart = document.getElementById("untrained-vs-trained-chart");
     const untrainedVsTrainedCanvas = document.getElementById("untrained-vs-trained-canvas");
     const exportJsonButton = document.getElementById("export-json");
-    const importCsvButton = document.getElementById("import-csv");
-    const csvFileInput = document.getElementById("csv-file");
+    const importJsonButton = document.getElementById("import-json");
+    const jsonFileInput = document.getElementById("json-file");
     const addTeamButton = document.getElementById("add-team");
     const removeTeamButton = document.getElementById("remove-team");
     const addLevelButton = document.getElementById("add-level");
@@ -1345,6 +1353,7 @@
     let timeColumnView = "month";
     let focusedTeamName = "";
     let hiddenFocusedMetricKeys = new Set();
+    let hiddenFocusedTimeLabels = new Set();
     let quarterCount = DEFAULT_QUARTER_COUNT;
     let startingQuarter = DEFAULT_STARTING_QUARTER;
     const STORAGE_KEY = "team-growth-proficiency-state";
@@ -2292,10 +2301,14 @@
       const labels = getTimeLabels(quarterRates);
       const metrics = buildFocusedMetrics(focusedTeam, thresholds);
       const isChartView = viewToggle.value === "chart";
+      const visibleColumnIndexes = labels
+        .map((label, index) => (hiddenFocusedTimeLabels.has(label) ? null : index))
+        .filter((index) => index !== null);
       const teamOptions = teams.map((team) => `<option value="${team.name}"${team.name === focusedTeam.name ? " selected" : ""}>${team.name}</option>`).join("");
 
       const rows = metrics.map((metric) => {
-        const cells = getTimeSeries(metric.values).map((value, index) => {
+        const cells = visibleColumnIndexes.map((index) => {
+          const value = getTimeSeries(metric.values)[index];
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2313,9 +2326,10 @@
             Team focus
             <select id="focus-team-select">${teamOptions}</select>
           </label>
+          <button type="button" class="table-toggle-button" id="focus-column-reset">Reset hidden columns</button>
         </div>
         <div class="focus-metric-hint">
-          Red dots flag months that hit red conditions in the detailed tables below. Amber dots flag trainer-delay pressure.
+          Click a time column header to hide that column. Use reset to show all columns again. Red dots flag months that hit red conditions in the detailed tables below. Amber dots flag trainer-delay pressure.
         </div>
         <div id="focus-table-wrapper" class="${isChartView ? "hidden" : ""}">
           <div class="table-scroll">
@@ -2323,10 +2337,10 @@
               <thead>
                 <tr>
                   <th>Metric (${focusedTeam.name})</th>
-                  ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+                  ${visibleColumnIndexes.map((index) => `<th class="focus-time-header" data-time-label="${labels[index]}">${labels[index].replace(" ", "<br>")}</th>`).join("")}
                 </tr>
               </thead>
-              <tbody>${rows}</tbody>
+              <tbody>${rows || `<tr><td colspan="2">All time columns are hidden. Use "Reset hidden columns".</td></tr>`}</tbody>
             </table>
           </div>
         </div>
@@ -2339,6 +2353,21 @@
       focusTeamSelect.addEventListener("change", () => {
         focusedTeamName = focusTeamSelect.value;
         recompute();
+      });
+      const focusColumnReset = document.getElementById("focus-column-reset");
+      focusColumnReset.addEventListener("click", () => {
+        hiddenFocusedTimeLabels.clear();
+        recompute();
+      });
+      teamFocusPanel.querySelectorAll(".focus-time-header").forEach((headerCell) => {
+        headerCell.addEventListener("click", () => {
+          const label = headerCell.dataset.timeLabel;
+          if (!label) {
+            return;
+          }
+          hiddenFocusedTimeLabels.add(label);
+          recompute();
+        });
       });
 
       if (isChartView) {
@@ -3016,6 +3045,7 @@
       timeColumnView,
       focusedTeamName,
       hiddenFocusedMetricKeys: Array.from(hiddenFocusedMetricKeys),
+      hiddenFocusedTimeLabels: Array.from(hiddenFocusedTimeLabels),
     });
 
     const saveState = () => {
@@ -3126,6 +3156,9 @@
       if (Array.isArray(stored.hiddenFocusedMetricKeys)) {
         hiddenFocusedMetricKeys = new Set(stored.hiddenFocusedMetricKeys.filter((key) => typeof key === "string"));
       }
+      if (Array.isArray(stored.hiddenFocusedTimeLabels)) {
+        hiddenFocusedTimeLabels = new Set(stored.hiddenFocusedTimeLabels.filter((label) => typeof label === "string"));
+      }
       isRestoring = false;
     };
 
@@ -3223,38 +3256,6 @@
       recompute();
     };
 
-    const parseCsv = (text) => {
-      const rows = [];
-      let row = [];
-      let current = "";
-      let inQuotes = false;
-      for (let i = 0; i < text.length; i += 1) {
-        const char = text[i];
-        const next = text[i + 1];
-        if (char === "\"" && inQuotes && next === "\"") {
-          current += "\"";
-          i += 1;
-        } else if (char === "\"") {
-          inQuotes = !inQuotes;
-        } else if (char === "," && !inQuotes) {
-          row.push(current);
-          current = "";
-        } else if (char === "\n" && !inQuotes) {
-          row.push(current);
-          rows.push(row);
-          row = [];
-          current = "";
-        } else if (char !== "\r") {
-          current += char;
-        }
-      }
-      if (current.length || row.length) {
-        row.push(current);
-        rows.push(row);
-      }
-      return rows;
-    };
-
     const exportJson = () => {
       const allInputValues = Array.from(document.querySelectorAll("input, select, textarea")).map((input) => ({
         id: input.id || null,
@@ -3280,48 +3281,27 @@
       URL.revokeObjectURL(url);
     };
 
-    const importCsv = (file) => {
+    const importJson = (file) => {
       if (!file) {
         return;
       }
       const reader = new FileReader();
       reader.onload = () => {
-        const rows = parseCsv(reader.result || "").filter((row) => row.some((cell) => cell.trim() !== ""));
-        if (rows.length === 0) {
+        let parsed;
+        try {
+          parsed = JSON.parse(String(reader.result || ""));
+        } catch (error) {
+          window.alert("Unable to import JSON. Please select a file exported from this tool.");
           return;
         }
-        const header = rows[0];
-        const hasLegacyCurrentColumn = /current\s+staff/i.test(header[1] || "");
-        const requiredLevels = Math.max(0, header.length - (hasLegacyCurrentColumn ? 2 : 1));
-        const currentLevels = getProductLevels().length;
-        if (requiredLevels > currentLevels) {
-          for (let i = currentLevels; i < requiredLevels; i += 1) {
-            addProductLevelColumn(0);
-          }
+        const importedState = parsed?.state && typeof parsed.state === "object"
+          ? parsed.state
+          : (parsed && typeof parsed === "object" ? parsed : null);
+        if (!importedState) {
+          window.alert("JSON is missing a valid state payload.");
+          return;
         }
-        const productLevelInputs = Array.from(document.querySelectorAll(".product-level-input"));
-        header.slice(hasLegacyCurrentColumn ? 2 : 1).forEach((cell, index) => {
-          const match = cell.match(/([0-9]+(?:\.[0-9]+)?)/);
-          if (match && productLevelInputs[index]) {
-            productLevelInputs[index].value = match[1];
-          }
-        });
-        const dataRows = rows.slice(1);
-        ensureTeamRowCount(dataRows.length);
-        const levelCount = getProductLevels().length;
-        dataRows.forEach((dataRow, rowIndex) => {
-          const row = teamTable.tBodies[0].rows[rowIndex];
-          const inputs = row.querySelectorAll("input");
-          const values = hasLegacyCurrentColumn
-            ? [dataRow[0], ...dataRow.slice(2, 2 + levelCount)]
-            : dataRow.slice(0, 1 + levelCount);
-          values.forEach((value, index) => {
-            if (inputs[index]) {
-              inputs[index].value = value;
-            }
-          });
-        });
-        syncInternalHiringTeamNames();
+        loadState(importedState);
         bindInputs();
         recompute();
       };
@@ -3484,10 +3464,10 @@
     };
 
     exportJsonButton.addEventListener("click", exportJson);
-    importCsvButton.addEventListener("click", () => csvFileInput.click());
-    csvFileInput.addEventListener("change", (event) => {
-      importCsv(event.target.files[0]);
-      csvFileInput.value = "";
+    importJsonButton.addEventListener("click", () => jsonFileInput.click());
+    jsonFileInput.addEventListener("change", (event) => {
+      importJson(event.target.files[0]);
+      jsonFileInput.value = "";
     });
     addLevelButton.addEventListener("click", () => {
       addProductLevelColumn(0);
