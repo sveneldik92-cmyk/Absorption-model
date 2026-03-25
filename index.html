@@ -270,6 +270,74 @@
       margin-top: 16px;
     }
 
+    .focus-metric-panel {
+      background: var(--table-white);
+      color: var(--table-white-text);
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 16px;
+    }
+
+    .focus-metric-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 10px;
+    }
+
+    .focus-metric-controls label {
+      color: #1e293b;
+      font-size: 0.82rem;
+      font-weight: 600;
+      min-width: 180px;
+    }
+
+    .focus-metric-controls select {
+      margin-top: 3px;
+      border-color: #94a3b8;
+      background: #ffffff;
+      color: #0f172a;
+    }
+
+    .focus-metric-hint {
+      color: #475569;
+      font-size: 0.8rem;
+      margin-bottom: 8px;
+    }
+
+    .focus-status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
+    .focus-status-red {
+      background: #dc2626;
+      box-shadow: 0 0 0 1px #7f1d1d;
+    }
+
+    .focus-status-amber {
+      background: #d97706;
+      box-shadow: 0 0 0 1px #78350f;
+    }
+
+    .focus-alert-cell {
+      background: rgba(220, 38, 38, 0.18);
+      font-weight: 700;
+    }
+
+    .focus-chart {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 8px;
+    }
+
     .table-card-header {
       display: flex;
       align-items: center;
@@ -950,6 +1018,7 @@
           </div>
         </div>
       </div>
+      <div id="team-focus-panel" class="focus-metric-panel"></div>
       <div id="step-5-metrics"></div>
     </div>
   </section>
@@ -1197,6 +1266,7 @@
     const trainerCapacityExplainer = document.getElementById("trainer-capacity-explainer");
     const viewToggle = document.getElementById("view-toggle");
     const timeColumnToggle = document.getElementById("time-column-toggle");
+    const teamFocusPanel = document.getElementById("team-focus-panel");
     const teamSizeTable = document.getElementById("team-size-table");
     const budgetChangeTable = document.getElementById("budget-change-table");
     const untrainedVsTrainedTable = document.getElementById("untrained-vs-trained-table");
@@ -1232,6 +1302,8 @@
     const chartInstances = new Map();
     let isRestoring = false;
     let timeColumnView = "month";
+    let focusedTeamName = "";
+    let focusedMetricView = "table";
     let quarterCount = DEFAULT_QUARTER_COUNT;
     let startingQuarter = DEFAULT_STARTING_QUARTER;
     const STORAGE_KEY = "team-growth-proficiency-state";
@@ -1982,6 +2054,204 @@
       trainerCapacityExplainer.textContent = `At ${formatNumber(trainerTimePercent, 0)}%, 1 trainer can support about ${formatNumber(traineesPerTrainer, 2)} trainee(s).`;
     };
 
+    const buildFocusedMetrics = (team, thresholds) => {
+      const trainingShare = (team.budgetChangeMonthly || []).map((value) => (Number.isFinite(value) ? value : null));
+      const proficiencyPct = (team.proficiencyMonthly || []).map((value) => (Number.isFinite(value) ? value : null));
+      const untrainedVsTrainedPct = (team.untrainedVsTrainedMonthly || []).map((value) => (Number.isFinite(value) ? value : null));
+      const delayFactors = team.trainingDelayFactorMonthly || [];
+      const capacity = team.traineeCapacityMonthly || [];
+      const adjustedNewness = team.newnessMonthly || [];
+
+      return [
+        {
+          key: "teamSize",
+          label: "Total team size",
+          axis: "y",
+          values: team.totalMonthlyHeadcount || [],
+          format: (value) => formatNumber(value, 1),
+        },
+        {
+          key: "adjustedNew",
+          label: "Training-adjusted new team members",
+          axis: "y",
+          values: adjustedNewness,
+          format: (value) => formatNumber(value, 1),
+          severity: (value, index) => {
+            const cap = capacity[index];
+            return Number.isFinite(cap) && Number.isFinite(value) && value > cap ? "red" : "";
+          },
+        },
+        {
+          key: "trainable",
+          label: "Trainees that can be trained (capacity)",
+          axis: "y",
+          values: capacity,
+          format: (value) => formatNumber(value, 1),
+          severity: (value, index) => {
+            const demand = adjustedNewness[index];
+            return Number.isFinite(demand) && Number.isFinite(value) && value < demand ? "red" : "";
+          },
+        },
+        {
+          key: "absoluteProficiency",
+          label: "Absolute proficient team members",
+          axis: "y",
+          values: team.proficiencyAbsoluteAdjustedMonthly || [],
+          format: (value) => formatNumber(value, 1),
+          severity: (_, index) => (Number(delayFactors[index]) > 1 ? "amber" : ""),
+        },
+        {
+          key: "proficiencyPct",
+          label: "Team proficiency (%)",
+          axis: "y1",
+          values: proficiencyPct,
+          format: (value) => `${formatNumber(value * 100, 1)}%`,
+          severity: (value) => (Number.isFinite(value) && value < thresholds.proficiencyRed ? "red" : ""),
+        },
+        {
+          key: "trainingSharePct",
+          label: "Share still in training (%)",
+          axis: "y1",
+          values: trainingShare,
+          format: (value) => `${formatNumber(value * 100, 1)}%`,
+          severity: (value) => (Number.isFinite(value) && value >= thresholds.newHireRed ? "red" : ""),
+        },
+        {
+          key: "untrainedVsTrainedPct",
+          label: "Untrained vs trained (%)",
+          axis: "y1",
+          values: untrainedVsTrainedPct,
+          format: (value) => `${formatNumber(value * 100, 1)}%`,
+          severity: (value) => (Number.isFinite(value) && value >= thresholds.newHireRed ? "red" : ""),
+        },
+      ];
+    };
+
+    const renderFocusedTeamPanel = (teams, quarterRates, thresholds) => {
+      if (!teamFocusPanel) {
+        return;
+      }
+      if (!teams.length) {
+        teamFocusPanel.innerHTML = "<div class=\"focus-metric-hint\">Add at least one team to see focused metrics.</div>";
+        return;
+      }
+      if (!focusedTeamName || !teams.some((team) => team.name === focusedTeamName)) {
+        focusedTeamName = teams[0].name;
+      }
+      const focusedTeam = teams.find((team) => team.name === focusedTeamName) || teams[0];
+      const labels = getTimeLabels(quarterRates);
+      const metrics = buildFocusedMetrics(focusedTeam, thresholds);
+      const teamOptions = teams.map((team) => `<option value="${team.name}"${team.name === focusedTeam.name ? " selected" : ""}>${team.name}</option>`).join("");
+
+      const rows = metrics.map((metric) => {
+        const cells = getTimeSeries(metric.values).map((value, index) => {
+          if (!Number.isFinite(value)) {
+            return "<td>-</td>";
+          }
+          const severity = metric.severity ? metric.severity(value, index) : "";
+          const dot = severity ? `<span class="focus-status-dot ${severity === "red" ? "focus-status-red" : "focus-status-amber"}"></span>` : "";
+          return `<td class="${severity === "red" ? "focus-alert-cell" : ""}">${metric.format(value)}${dot}</td>`;
+        });
+        return `<tr><td>${metric.label}</td>${cells.join("")}</tr>`;
+      }).join("");
+
+      teamFocusPanel.innerHTML = `
+        <div class="focus-metric-controls">
+          <label>
+            Team focus
+            <select id="focus-team-select">${teamOptions}</select>
+          </label>
+          <label>
+            Focus view
+            <select id="focus-view-toggle">
+              <option value="table"${focusedMetricView === "table" ? " selected" : ""}>Table</option>
+              <option value="chart"${focusedMetricView === "chart" ? " selected" : ""}>Graph</option>
+            </select>
+          </label>
+        </div>
+        <div class="focus-metric-hint">
+          Red dots flag months that hit red conditions in the detailed tables below. Amber dots flag trainer-delay pressure.
+        </div>
+        <div id="focus-table-wrapper" class="${focusedMetricView === "chart" ? "hidden" : ""}">
+          <div class="table-scroll">
+            <table class="proficiency-table compact-table">
+              <thead>
+                <tr>
+                  <th>Metric (${focusedTeam.name})</th>
+                  ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>
+        <div id="focus-chart-wrapper" class="focus-chart ${focusedMetricView === "table" ? "hidden" : ""}">
+          <canvas id="focus-team-canvas" height="130"></canvas>
+        </div>
+      `;
+
+      const focusTeamSelect = document.getElementById("focus-team-select");
+      const focusViewToggle = document.getElementById("focus-view-toggle");
+      focusTeamSelect.addEventListener("change", () => {
+        focusedTeamName = focusTeamSelect.value;
+        recompute();
+      });
+      focusViewToggle.addEventListener("change", () => {
+        focusedMetricView = focusViewToggle.value;
+        recompute();
+      });
+
+      if (focusedMetricView === "chart") {
+        const focusCanvas = document.getElementById("focus-team-canvas");
+        const lineColors = ["#2563eb", "#7c3aed", "#0ea5e9", "#f59e0b", "#dc2626", "#059669", "#9333ea"];
+        const datasets = metrics.map((metric, index) => ({
+          label: metric.label,
+          data: getTimeSeries(metric.values).map((value) => Number.isFinite(value) ? (metric.axis === "y1" ? value * 100 : Number(value.toFixed(2))) : null),
+          borderColor: lineColors[index % lineColors.length],
+          backgroundColor: "transparent",
+          borderWidth: 2,
+          tension: 0.28,
+          yAxisID: metric.axis,
+          pointRadius: 3,
+        }));
+        renderChart("focus-team", focusCanvas, labels, datasets, {
+          responsive: true,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { position: "bottom", labels: { color: "#0f172a" } },
+            tooltip: {
+              enabled: true,
+              callbacks: {
+                label: (ctx) => {
+                  const metric = metrics[ctx.datasetIndex];
+                  const raw = getTimeSeries(metric.values)[ctx.dataIndex];
+                  if (!Number.isFinite(raw)) {
+                    return `${metric.label}: -`;
+                  }
+                  return `${metric.label}: ${metric.format(raw)}`;
+                },
+              },
+            },
+          },
+          scales: {
+            x: { ticks: { color: "#334155" }, grid: { color: "rgba(148, 163, 184, 0.2)" } },
+            y: {
+              position: "left",
+              title: { display: true, text: "Absolute values", color: "#0f172a" },
+              ticks: { color: "#334155" },
+              grid: { color: "rgba(148, 163, 184, 0.2)" },
+            },
+            y1: {
+              position: "right",
+              title: { display: true, text: "Percent (%)", color: "#0f172a" },
+              ticks: { color: "#334155", callback: (value) => `${value}%` },
+              grid: { drawOnChartArea: false },
+            },
+          },
+        });
+      }
+    };
+
     const renderProficiencyTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
       const header = `
@@ -2385,7 +2655,12 @@
       const orangeThreshold = (Number(thresholdOrangeInput.value) || 0) / 100;
       const newHireRedThreshold = (Number(newHireThresholdRedInput.value) || 0) / 100;
       const newHireOrangeThreshold = (Number(newHireThresholdOrangeInput.value) || 0) / 100;
+      const focusedThresholds = {
+        proficiencyRed: redThreshold,
+        newHireRed: newHireRedThreshold,
+      };
 
+      renderFocusedTeamPanel(teamsWithExperienceBand, quarterProducts, focusedThresholds);
       renderHeadcountTable(teamsWithExperienceBand, quarterProducts);
       renderBudgetChangeTable(teamsWithExperienceBand, newHireRedThreshold, newHireOrangeThreshold, quarterProducts);
       renderUntrainedVsTrainedTable(teamsWithExperienceBand, newHireRedThreshold, newHireOrangeThreshold, quarterProducts);
@@ -2430,6 +2705,8 @@
         },
         view: viewToggle.value,
         timeColumnView,
+        focusedTeamName,
+        focusedMetricView,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     };
@@ -2530,6 +2807,12 @@
       }
       if (stored.timeColumnView) {
         timeColumnView = stored.timeColumnView;
+      }
+      if (typeof stored.focusedTeamName === "string") {
+        focusedTeamName = stored.focusedTeamName;
+      }
+      if (stored.focusedMetricView === "table" || stored.focusedMetricView === "chart") {
+        focusedMetricView = stored.focusedMetricView;
       }
       isRestoring = false;
     };
