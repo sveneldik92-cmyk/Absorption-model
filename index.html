@@ -839,7 +839,7 @@
       </p>
       <table id="team-table"></table>
       <div class="section-actions">
-        <button type="button" id="export-csv">Export CSV</button>
+        <button type="button" id="export-json">Export JSON</button>
         <button type="button" id="import-csv">Import CSV</button>
         <input type="file" id="csv-file" accept=".csv" />
         <button type="button" id="add-team">Add row</button>
@@ -1326,7 +1326,7 @@
     const budgetChangeCanvas = document.getElementById("budget-change-canvas");
     const untrainedVsTrainedChart = document.getElementById("untrained-vs-trained-chart");
     const untrainedVsTrainedCanvas = document.getElementById("untrained-vs-trained-canvas");
-    const exportCsvButton = document.getElementById("export-csv");
+    const exportJsonButton = document.getElementById("export-json");
     const importCsvButton = document.getElementById("import-csv");
     const csvFileInput = document.getElementById("csv-file");
     const addTeamButton = document.getElementById("add-team");
@@ -2985,39 +2985,41 @@
       saveState();
     };
 
-    const saveState = () => {
-      const state = {
-        productLevels: getProductLevels(),
-        teamRows: Array.from(teamTable.tBodies[0].rows).map((row) =>
-          Array.from(row.querySelectorAll("input")).map((input) => input.value)
+    const getStateSnapshot = () => ({
+      productLevels: getProductLevels(),
+      teamRows: Array.from(teamTable.tBodies[0].rows).map((row) =>
+        Array.from(row.querySelectorAll("input")).map((input) => input.value)
+      ),
+      quarterCount,
+      startingQuarter,
+      quarterProducts: parseQuarterProducts(),
+      quarterInternalHiring: parseQuarterInternalHiring(),
+      actualHeadcount: parseActualHeadcount(),
+      trainingCurve: {
+        lowFit: Array.from(trainingTable.tBodies[0].rows[0].querySelectorAll("input")).map(
+          (input) => input.value
         ),
-        quarterCount,
-        startingQuarter,
-        quarterProducts: parseQuarterProducts(),
-        quarterInternalHiring: parseQuarterInternalHiring(),
-        actualHeadcount: parseActualHeadcount(),
-        trainingCurve: {
-          lowFit: Array.from(trainingTable.tBodies[0].rows[0].querySelectorAll("input")).map(
-            (input) => input.value
-          ),
-          highFit: Array.from(trainingTable.tBodies[0].rows[1].querySelectorAll("input")).map(
-            (input) => input.value
-          ),
-        },
-        thresholds: {
-          red: thresholdRedInput.value,
-          orange: thresholdOrangeInput.value,
-          newHireRed: newHireThresholdRedInput.value,
-          newHireOrange: newHireThresholdOrangeInput.value,
-          experienceBandLower: experienceBandLowerInput.value,
-          experienceBandUpper: experienceBandUpperInput.value,
-          trainerTimePerTrainee: trainerTimePerTraineeInput.value,
-        },
-        view: viewToggle.value,
-        timeColumnView,
-        focusedTeamName,
-        hiddenFocusedMetricKeys: Array.from(hiddenFocusedMetricKeys),
-      };
+        highFit: Array.from(trainingTable.tBodies[0].rows[1].querySelectorAll("input")).map(
+          (input) => input.value
+        ),
+      },
+      thresholds: {
+        red: thresholdRedInput.value,
+        orange: thresholdOrangeInput.value,
+        newHireRed: newHireThresholdRedInput.value,
+        newHireOrange: newHireThresholdOrangeInput.value,
+        experienceBandLower: experienceBandLowerInput.value,
+        experienceBandUpper: experienceBandUpperInput.value,
+        trainerTimePerTrainee: trainerTimePerTraineeInput.value,
+      },
+      view: viewToggle.value,
+      timeColumnView,
+      focusedTeamName,
+      hiddenFocusedMetricKeys: Array.from(hiddenFocusedMetricKeys),
+    });
+
+    const saveState = () => {
+      const state = getStateSnapshot();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     };
 
@@ -3221,14 +3223,6 @@
       recompute();
     };
 
-    const csvEscape = (value) => {
-      const stringValue = String(value ?? "");
-      if (/[",\n]/.test(stringValue)) {
-        return `"${stringValue.replace(/"/g, "\"\"")}"`;
-      }
-      return stringValue;
-    };
-
     const parseCsv = (text) => {
       const rows = [];
       let row = [];
@@ -3261,23 +3255,27 @@
       return rows;
     };
 
-    const exportCsv = () => {
-      const productLevels = getProductLevels();
-      const header = [
-        "Team",
-        ...productLevels.map((level) => `Staff needed @ ${level} products/qtr`),
-      ];
-      const rows = [header];
-      Array.from(teamTable.tBodies[0].rows).forEach((row) => {
-        const inputs = row.querySelectorAll("input");
-        rows.push(Array.from(inputs).map((input) => input.value));
-      });
-      const csvContent = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const exportJson = () => {
+      const allInputValues = Array.from(document.querySelectorAll("input, select, textarea")).map((input) => ({
+        id: input.id || null,
+        name: input.name || null,
+        type: input.type || input.tagName.toLowerCase(),
+        value: input.value,
+      }));
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        source: {
+          title: document.title,
+          path: window.location.pathname,
+        },
+        state: getStateSnapshot(),
+        allInputValues,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "team-staffing.csv";
+      link.download = "team-growth-inputs.json";
       link.click();
       URL.revokeObjectURL(url);
     };
@@ -3485,7 +3483,7 @@
       recompute();
     };
 
-    exportCsvButton.addEventListener("click", exportCsv);
+    exportJsonButton.addEventListener("click", exportJson);
     importCsvButton.addEventListener("click", () => csvFileInput.click());
     csvFileInput.addEventListener("change", (event) => {
       importCsv(event.target.files[0]);
