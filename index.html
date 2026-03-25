@@ -1125,12 +1125,18 @@
     const STEP_5_METRICS = [
       {
         title: "Total team size over time",
-        note: "Monthly headcount after actual-headcount overrides: previous month total + monthly hires − monthly exits (if any).",
+        note: "Monthly headcount after actual-headcount overrides: previous month total + monthly hires − monthly exits (if any). Includes a second row per team for required proficient team size from Sections 1–2.",
         bodyId: "team-size-body",
         tableId: "team-size-table",
         chartId: "team-size-chart",
         canvasId: "team-size-canvas",
         first: true,
+      },
+      {
+        title: "Required proficient team size over time",
+        note: "Monthly required proficient team size translated from Sections 1–2 quarter rates and mapped to months in each quarter.",
+        bodyId: "required-proficient-body",
+        tableId: "required-proficient-table",
       },
       {
         title: "Team proficiency (absolute, trainer-capacity adjusted)",
@@ -1287,6 +1293,7 @@
     const timeColumnToggle = document.getElementById("time-column-toggle");
     const teamFocusPanel = document.getElementById("team-focus-panel");
     const teamSizeTable = document.getElementById("team-size-table");
+    const requiredProficientTable = document.getElementById("required-proficient-table");
     const budgetChangeTable = document.getElementById("budget-change-table");
     const untrainedVsTrainedTable = document.getElementById("untrained-vs-trained-table");
     const newnessTable = document.getElementById("newness-table");
@@ -2389,8 +2396,46 @@
           <tbody>
       `;
 
+      const bodyRows = teams.flatMap((team) => {
+        const totalCells = getTimeSeries(team.totalMonthlyHeadcount).map((value) => {
+          if (!Number.isFinite(value)) {
+            return "<td>-</td>";
+          }
+          return `<td>${formatNumber(value, 1)}</td>`;
+        });
+        const requiredCells = getTimeSeries(team.requiredMonthlyHeadcount || []).map((value) => {
+          if (!Number.isFinite(value)) {
+            return "<td>-</td>";
+          }
+          return `<td>${formatNumber(value, 1)}</td>`;
+        });
+        return [
+          `<tr><td>${team.name} — Total team size</td>${totalCells.join("")}</tr>`,
+          `<tr><td>${team.name} — Required proficient team size</td>${requiredCells.join("")}</tr>`,
+        ];
+      });
+
+      teamSizeTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+    };
+
+    const renderRequiredProficientTable = (teams, quarterRates) => {
+      if (!requiredProficientTable) {
+        return;
+      }
+      const labels = getTimeLabels(quarterRates);
+      const header = `
+        <table class="proficiency-table compact-table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
       const bodyRows = teams.map((team) => {
-        const cells = getTimeSeries(team.totalMonthlyHeadcount).map((value) => {
+        const cells = getTimeSeries(team.requiredMonthlyHeadcount || []).map((value) => {
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2399,7 +2444,7 @@
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
-      teamSizeTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+      requiredProficientTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
     };
 
     const renderNewnessTable = (teams, quarterRates) => {
@@ -2763,7 +2808,7 @@
 
     const updateViewToggle = () => {
       const isChart = viewToggle.value === "chart";
-      [teamSizeTable, newnessTable, trainerTable, experienceBandTable, proficiencyTable, budgetChangeTable, untrainedVsTrainedTable, qoqGrowthTable].forEach((table) => {
+      [teamSizeTable, requiredProficientTable, newnessTable, trainerTable, experienceBandTable, proficiencyTable, budgetChangeTable, untrainedVsTrainedTable, qoqGrowthTable].forEach((table) => {
         table.classList.toggle("hidden", isChart);
       });
       [teamSizeChart, newnessChart, proficiencyChart, budgetChangeChart, untrainedVsTrainedChart].forEach((chart) => {
@@ -2825,6 +2870,7 @@
 
       renderFocusedTeamPanel(teamsWithExperienceBand, quarterProducts, focusedThresholds);
       renderHeadcountTable(teamsWithExperienceBand, quarterProducts);
+      renderRequiredProficientTable(teamsWithExperienceBand, quarterProducts);
       renderBudgetChangeTable(teamsWithExperienceBand, newHireRedThreshold, newHireOrangeThreshold, quarterProducts);
       renderUntrainedVsTrainedTable(teamsWithExperienceBand, newHireRedThreshold, newHireOrangeThreshold, quarterProducts);
       renderTrainerTable(teamsWithExperienceBand, quarterProducts);
