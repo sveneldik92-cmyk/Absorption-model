@@ -238,9 +238,10 @@
     }
 
     .capacity-alert {
-      background: rgba(248, 113, 113, 0.32);
-      color: #991b1b;
-      box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.55);
+      background: rgba(220, 38, 38, 0.35);
+      color: #7f1d1d;
+      box-shadow: inset 0 0 0 1px rgba(185, 28, 28, 0.65);
+      font-weight: 700;
     }
 
     .chart-wrapper {
@@ -632,6 +633,19 @@
       background: transparent;
     }
 
+    #actual-headcount-table .actual-headcount-input.auto-filled {
+      background: #e2e8f0;
+      color: #64748b;
+      border-color: #cbd5e1;
+      font-style: italic;
+    }
+
+    #actual-headcount-table .actual-headcount-input.auto-filled:focus {
+      background: #ffffff;
+      color: var(--table-white-text);
+      font-style: normal;
+    }
+
 
     #step-5 input[type="number"],
     #step-5 select {
@@ -838,7 +852,7 @@
     </div>
     <div class="section-body">
       <p>
-        Optionally override the modelled team size with the actual in-team headcount per quarter. Trainer counts use this as a ceiling; blank cells fall back to the modelled headcount.
+        By default, this table is auto-filled from Sections 1–2 (grey cells). Edit any cell to manually override only that team+quarter. Trainer counts use these values as a ceiling.
       </p>
       <div class="table-scroll">
         <table id="actual-headcount-table" class="compact-table proficiency-table unified-quarter-table">
@@ -1361,6 +1375,9 @@
         const indexedValues = Array.isArray(savedActualHeadcount?.rows?.[teamIndex]?.values)
           ? savedActualHeadcount.rows[teamIndex].values
           : null;
+        const indexedManualValues = Array.isArray(savedActualHeadcount?.rows?.[teamIndex]?.manualValues)
+          ? savedActualHeadcount.rows[teamIndex].manualValues
+          : null;
         const sourceValues = legacyValues || indexedValues || [];
         return {
           name: teamName || `Team ${teamIndex + 1}`,
@@ -1368,7 +1385,36 @@
             const raw = sourceValues[quarterIndex];
             return raw === "" || raw === null || raw === undefined ? "" : (Number(raw) || 0);
           }),
+          manualValues: quarterLabels.map((_, quarterIndex) => {
+            if (indexedManualValues) {
+              return Boolean(indexedManualValues[quarterIndex]);
+            }
+            const raw = sourceValues[quarterIndex];
+            return !(raw === "" || raw === null || raw === undefined);
+          }),
         };
+      });
+    };
+
+    const computeModelQuarterHeadcountByTeam = (staffedTeams) =>
+      Object.fromEntries(
+        staffedTeams.map((team) => [team.name, aggregateQuarterValues(team.totalMonthlyHeadcount)])
+      );
+
+    const syncActualHeadcountAutoValues = (modelQuarterHeadcountByTeam = {}) => {
+      Array.from(actualHeadcountBody.querySelectorAll("tr")).forEach((row) => {
+        const teamName = row.cells[0]?.textContent?.trim();
+        const modelQuarterValues = modelQuarterHeadcountByTeam[teamName] || [];
+        Array.from(row.querySelectorAll(".actual-headcount-input")).forEach((input, index) => {
+          const isManual = input.dataset.manual === "true";
+          if (isManual) {
+            input.classList.remove("auto-filled");
+            return;
+          }
+          const fallbackValue = modelQuarterValues[index];
+          input.value = Number.isFinite(fallbackValue) ? formatNumber(fallbackValue, 1) : "";
+          input.classList.add("auto-filled");
+        });
       });
     };
 
@@ -1394,7 +1440,7 @@
                 .map(
                   (_, index) => `
                     <td class="${getQuarterHighlightClass("step-4b", index, quarterLabels[index])}">
-                      <input class="actual-headcount-input" type="number" min="0" step="1" value="${row.values[index]}" placeholder="Auto" />
+                      <input class="actual-headcount-input ${row.manualValues[index] ? "" : "auto-filled"}" type="number" min="0" step="0.1" value="${row.values[index]}" placeholder="Auto" data-manual="${row.manualValues[index] ? "true" : "false"}" />
                     </td>
                   `
                 )
@@ -1496,7 +1542,12 @@
     const parseActualHeadcount = () => ({
       rows: Array.from(actualHeadcountBody.querySelectorAll("tr")).map((row, index) => ({
         name: row.cells[0]?.textContent?.trim() || `Team ${index + 1}`,
-        values: Array.from(row.querySelectorAll(".actual-headcount-input")).map((input) => input.value),
+        values: Array.from(row.querySelectorAll(".actual-headcount-input")).map((input) =>
+          input.dataset.manual === "true" ? input.value : ""
+        ),
+        manualValues: Array.from(row.querySelectorAll(".actual-headcount-input")).map((input) =>
+          input.dataset.manual === "true"
+        ),
       })),
     });
 
@@ -2175,6 +2226,8 @@
       const monthlyInternalHiring = expandInternalHiringToMonthly(getQuarterInternalHiringByName(quarterInternalHiring));
 
       const staffedTeams = computeMonthlyStaffing(teams, productLevels, monthlyProducts);
+      const modelQuarterHeadcountByTeam = computeModelQuarterHeadcountByTeam(staffedTeams);
+      syncActualHeadcountAutoValues(modelQuarterHeadcountByTeam);
 
       const trainingCurve = parseTrainingCurve();
       const actualHeadcountMonthly = expandActualHeadcountToMonthly(actualHeadcount, staffedTeams);
@@ -2373,6 +2426,13 @@
     const bindInputs = () => {
       document.querySelectorAll("input, select").forEach((input) => {
         if (!input.dataset.bound) {
+          if (input.classList.contains("actual-headcount-input")) {
+            input.addEventListener("input", () => {
+              const hasManualValue = input.value !== "";
+              input.dataset.manual = hasManualValue ? "true" : "false";
+              input.classList.toggle("auto-filled", !hasManualValue);
+            });
+          }
           input.addEventListener("input", recompute);
           input.dataset.bound = "true";
         }
@@ -2688,6 +2748,9 @@
           values: row.values
             .slice(0, quarterCount)
             .concat(Array(Math.max(quarterCount - row.values.length, 0)).fill("")),
+          manualValues: (row.manualValues || [])
+            .slice(0, quarterCount)
+            .concat(Array(Math.max(quarterCount - (row.manualValues || []).length, 0)).fill(false)),
         })),
       };
       buildQuarterlyRateTable(resizedRates);
