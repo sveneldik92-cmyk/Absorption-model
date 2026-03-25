@@ -2300,13 +2300,14 @@
       const focusedTeam = teams.find((team) => team.name === focusedTeamName) || teams[0];
       const labels = getTimeLabels(quarterRates);
       const metrics = buildFocusedMetrics(focusedTeam, thresholds);
+      const visibleMetrics = metrics.filter((metric) => !hiddenFocusedMetricKeys.has(metric.key));
       const isChartView = viewToggle.value === "chart";
       const visibleColumnIndexes = labels
         .map((label, index) => (hiddenFocusedTimeLabels.has(label) ? null : index))
         .filter((index) => index !== null);
       const teamOptions = teams.map((team) => `<option value="${team.name}"${team.name === focusedTeam.name ? " selected" : ""}>${team.name}</option>`).join("");
 
-      const rows = metrics.map((metric) => {
+      const rows = visibleMetrics.map((metric) => {
         const cells = visibleColumnIndexes.map((index) => {
           const value = getTimeSeries(metric.values)[index];
           if (!Number.isFinite(value)) {
@@ -2340,7 +2341,7 @@
                   ${visibleColumnIndexes.map((index) => `<th class="focus-time-header" data-time-label="${labels[index]}">${labels[index].replace(" ", "<br>")}</th>`).join("")}
                 </tr>
               </thead>
-              <tbody>${rows || `<tr><td colspan="2">All time columns are hidden. Use "Reset hidden columns".</td></tr>`}</tbody>
+              <tbody>${rows || `<tr><td colspan="2">${visibleMetrics.length ? "All time columns are hidden. Use \"Reset hidden columns\"." : "All metrics are hidden in chart legend. Switch to chart view and re-enable one or more metrics in the legend."}</td></tr>`}</tbody>
             </table>
           </div>
         </div>
@@ -2398,6 +2399,17 @@
           yAxisID: metric.axis,
           pointRadius: 3,
         }));
+        datasets.push({
+          label: "New hire red threshold (%)",
+          data: labels.map(() => Number((thresholds.newHireRed * 100).toFixed(2))),
+          borderColor: "#b91c1c",
+          backgroundColor: "transparent",
+          borderWidth: 2,
+          borderDash: [4, 4],
+          tension: 0,
+          yAxisID: "y1",
+          pointRadius: 0,
+        });
         renderChart("focus-team", focusCanvas, labels, datasets, {
           responsive: true,
           interaction: { mode: "index", intersect: false },
@@ -2430,6 +2442,12 @@
               callbacks: {
                 label: (ctx) => {
                   const metric = metrics[ctx.datasetIndex];
+                  if (!metric) {
+                    const thresholdValue = ctx.parsed?.y;
+                    return Number.isFinite(thresholdValue)
+                      ? `${ctx.dataset.label}: ${formatNumber(thresholdValue, 1)}%`
+                      : `${ctx.dataset.label}: -`;
+                  }
                   const raw = getTimeSeries(metric.values)[ctx.dataIndex];
                   if (!Number.isFinite(raw)) {
                     return `${metric.label}: -`;
