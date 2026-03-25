@@ -1086,7 +1086,7 @@
             <em>Total training-adjusted newness = high-fit training-adjusted newness + low-fit training-adjusted newness</em><br />
             <em>Absolute proficiency = total headcount − min(total headcount, training-adjusted newness)</em>
           </div>
-          Capacity is treated as a hard comparison metric: cells are highlighted red when <em>training-adjusted newness &gt; trainee capacity</em>. For the absolute proficiency table, conditional coloring is now applied only when absolute proficiency is below required monthly staffing from Sections 1–2 (after quarter-to-month conversion), with the Section 6 red/orange thresholds determining severity.
+          Capacity is treated as a hard comparison metric: cells are highlighted red when <em>training-adjusted newness &gt; trainee capacity</em>. For the effective team members table, conditional coloring is now applied only when effective team members are below required monthly staffing from Sections 1–2 (after quarter-to-month conversion), with the Section 6 red/orange thresholds determining severity.
         </li>
       </ol>
     </div>
@@ -1138,28 +1138,28 @@
         first: true,
       },
       {
-        title: "Team proficiency (absolute, trainer-capacity adjusted)",
-        note: "Productive team members in absolute count: total headcount − min(total headcount, training-adjusted newness). Cells are highlighted only when this value is below required monthly staffing from Sections 1–2.",
-        bodyId: "proficiency-absolute-body",
-        tableId: "proficiency-absolute-table",
-      },
-      {
-        title: "Required proficient team size over time",
-        note: "Monthly required proficient team size translated from Sections 1–2 quarter rates and mapped to months in each quarter.",
-        bodyId: "required-proficient-body",
-        tableId: "required-proficient-table",
-      },
-      {
-        title: "Proficiency gap vs required",
-        note: "Absolute proficient team members − required proficient team size. Negative values are shown in red.",
-        bodyId: "proficiency-gap-body",
-        tableId: "proficiency-gap-table",
-      },
-      {
         title: "Quarter-over-quarter team growth",
         note: "Quarter-over-quarter growth = total team size for a quarter − total team size from the previous quarter.",
         bodyId: "qoq-growth-body",
         tableId: "qoq-growth-table",
+      },
+      {
+        title: "Effective team members (trainer-capacity adjusted)",
+        note: "Effective team members in absolute count: total headcount − min(total headcount, training-adjusted newness). Cells are highlighted only when this value is below required monthly staffing from Sections 1–2.",
+        bodyId: "proficiency-absolute-body",
+        tableId: "proficiency-absolute-table",
+      },
+      {
+        title: "Required effective team size over time",
+        note: "Monthly required effective team size translated from Sections 1–2 quarter rates and mapped to months in each quarter.",
+        bodyId: "required-proficient-body",
+        tableId: "required-proficient-table",
+      },
+      {
+        title: "Effective team member gap vs required",
+        note: "Effective team members − required effective team size. Negative values are shown in red.",
+        bodyId: "proficiency-gap-body",
+        tableId: "proficiency-gap-table",
       },
       {
         title: "Trainees that can be trained (capacity)",
@@ -1344,7 +1344,7 @@
     let isRestoring = false;
     let timeColumnView = "month";
     let focusedTeamName = "";
-    let focusedMetricView = "table";
+    let hiddenFocusedMetricKeys = new Set();
     let quarterCount = DEFAULT_QUARTER_COUNT;
     let startingQuarter = DEFAULT_STARTING_QUARTER;
     const STORAGE_KEY = "team-growth-proficiency-state";
@@ -2166,8 +2166,15 @@
           format: (value) => formatNumber(value, 1),
         },
         {
+          key: "qoqGrowth",
+          label: "Quarter-over-quarter team growth",
+          axis: "y",
+          values: qoqGrowth,
+          format: (value) => `${value > 0 ? "+" : ""}${formatNumber(value, 1)}`,
+        },
+        {
           key: "absoluteProficiency",
-          label: "Absolute proficient team members",
+          label: "Effective team members",
           axis: "y",
           values: team.proficiencyAbsoluteAdjustedMonthly || [],
           format: (value) => formatNumber(value, 1),
@@ -2188,14 +2195,14 @@
         },
         {
           key: "requiredProficient",
-          label: "Required proficient team size",
+          label: "Required effective team size",
           axis: "y",
           values: team.requiredMonthlyHeadcount || [],
           format: (value) => formatNumber(value, 1),
         },
         {
           key: "proficiencyGap",
-          label: "Proficiency gap (absolute − required)",
+          label: "Effective team member gap (effective − required)",
           axis: "y",
           values: (team.proficiencyAbsoluteAdjustedMonthly || []).map((value, index) => {
             const required = team.requiredMonthlyHeadcount?.[index];
@@ -2206,13 +2213,6 @@
           }),
           format: (value) => formatNumber(value, 1),
           severity: (value) => (Number.isFinite(value) && value < 0 ? "red" : ""),
-        },
-        {
-          key: "qoqGrowth",
-          label: "Quarter-over-quarter team growth",
-          axis: "y",
-          values: qoqGrowth,
-          format: (value) => `${value > 0 ? "+" : ""}${formatNumber(value, 1)}`,
         },
         {
           key: "trainable",
@@ -2291,6 +2291,7 @@
       const focusedTeam = teams.find((team) => team.name === focusedTeamName) || teams[0];
       const labels = getTimeLabels(quarterRates);
       const metrics = buildFocusedMetrics(focusedTeam, thresholds);
+      const isChartView = viewToggle.value === "chart";
       const teamOptions = teams.map((team) => `<option value="${team.name}"${team.name === focusedTeam.name ? " selected" : ""}>${team.name}</option>`).join("");
 
       const rows = metrics.map((metric) => {
@@ -2312,18 +2313,11 @@
             Team focus
             <select id="focus-team-select">${teamOptions}</select>
           </label>
-          <label>
-            Focus view
-            <select id="focus-view-toggle">
-              <option value="table"${focusedMetricView === "table" ? " selected" : ""}>Table</option>
-              <option value="chart"${focusedMetricView === "chart" ? " selected" : ""}>Graph</option>
-            </select>
-          </label>
         </div>
         <div class="focus-metric-hint">
           Red dots flag months that hit red conditions in the detailed tables below. Amber dots flag trainer-delay pressure.
         </div>
-        <div id="focus-table-wrapper" class="${focusedMetricView === "chart" ? "hidden" : ""}">
+        <div id="focus-table-wrapper" class="${isChartView ? "hidden" : ""}">
           <div class="table-scroll">
             <table class="proficiency-table compact-table">
               <thead>
@@ -2336,23 +2330,18 @@
             </table>
           </div>
         </div>
-        <div id="focus-chart-wrapper" class="focus-chart ${focusedMetricView === "table" ? "hidden" : ""}">
+        <div id="focus-chart-wrapper" class="focus-chart ${isChartView ? "" : "hidden"}">
           <canvas id="focus-team-canvas" height="130"></canvas>
         </div>
       `;
 
       const focusTeamSelect = document.getElementById("focus-team-select");
-      const focusViewToggle = document.getElementById("focus-view-toggle");
       focusTeamSelect.addEventListener("change", () => {
         focusedTeamName = focusTeamSelect.value;
         recompute();
       });
-      focusViewToggle.addEventListener("change", () => {
-        focusedMetricView = focusViewToggle.value;
-        recompute();
-      });
 
-      if (focusedMetricView === "chart") {
+      if (isChartView) {
         const focusCanvas = document.getElementById("focus-team-canvas");
         const lineColors = [
           "#d62728",
@@ -2369,6 +2358,8 @@
         ];
         const datasets = metrics.map((metric, index) => ({
           label: metric.label,
+          metricKey: metric.key,
+          hidden: hiddenFocusedMetricKeys.has(metric.key),
           data: getTimeSeries(metric.values).map((value) => Number.isFinite(value) ? (metric.axis === "y1" ? value * 100 : Number(value.toFixed(2))) : null),
           borderColor: lineColors[index % lineColors.length],
           backgroundColor: "transparent",
@@ -2382,7 +2373,29 @@
           responsive: true,
           interaction: { mode: "index", intersect: false },
           plugins: {
-            legend: { position: "bottom", labels: { color: "#0f172a" } },
+            legend: {
+              position: "bottom",
+              labels: { color: "#0f172a" },
+              onClick: (event, legendItem, legend) => {
+                const chart = legend.chart;
+                const datasetIndex = legendItem.datasetIndex;
+                if (!Number.isInteger(datasetIndex)) {
+                  return;
+                }
+                const dataset = chart.data.datasets[datasetIndex];
+                const nextHidden = !chart.isDatasetVisible(datasetIndex);
+                chart.setDatasetVisibility(datasetIndex, nextHidden);
+                if (dataset.metricKey) {
+                  if (nextHidden) {
+                    hiddenFocusedMetricKeys.add(dataset.metricKey);
+                  } else {
+                    hiddenFocusedMetricKeys.delete(dataset.metricKey);
+                  }
+                }
+                chart.update();
+                saveState();
+              },
+            },
             tooltip: {
               enabled: true,
               callbacks: {
@@ -3003,7 +3016,7 @@
         view: viewToggle.value,
         timeColumnView,
         focusedTeamName,
-        focusedMetricView,
+        hiddenFocusedMetricKeys: Array.from(hiddenFocusedMetricKeys),
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     };
@@ -3108,8 +3121,8 @@
       if (typeof stored.focusedTeamName === "string") {
         focusedTeamName = stored.focusedTeamName;
       }
-      if (stored.focusedMetricView === "table" || stored.focusedMetricView === "chart") {
-        focusedMetricView = stored.focusedMetricView;
+      if (Array.isArray(stored.hiddenFocusedMetricKeys)) {
+        hiddenFocusedMetricKeys = new Set(stored.hiddenFocusedMetricKeys.filter((key) => typeof key === "string"));
       }
       isRestoring = false;
     };
@@ -3152,7 +3165,7 @@
       updateTeamTableColumnWidths();
       updateStep2TableColumnWidths();
       if (!viewToggle.dataset.bound) {
-        viewToggle.addEventListener("change", updateViewToggle);
+        viewToggle.addEventListener("change", recompute);
         viewToggle.dataset.bound = "true";
       }
     };
