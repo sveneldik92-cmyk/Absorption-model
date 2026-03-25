@@ -1840,12 +1840,8 @@
 
           const demand = team.newnessMonthly?.[monthIndex] ?? 0;
           let delayFactor = 1;
-          if (Number.isFinite(demand) && demand > 0) {
-            if (Number.isFinite(traineeCapacity) && traineeCapacity > 0) {
-              delayFactor = Math.max(demand / traineeCapacity, 1);
-            } else {
-              delayFactor = Number.POSITIVE_INFINITY;
-            }
+          if (Number.isFinite(demand) && demand > 0 && Number.isFinite(traineeCapacity) && traineeCapacity > 0) {
+            delayFactor = Math.max(demand / traineeCapacity, 1);
           }
           trainingDelayFactorMonthly.push(delayFactor);
 
@@ -1854,7 +1850,11 @@
             ? demand * delayFactor
             : totalHeadcount;
           const adjustedAbsoluteProficiency = Number.isFinite(totalHeadcount)
-            ? Math.max(totalHeadcount - Math.min(totalHeadcount, Math.max(delayedNewness, 0)), 0)
+            ? Math.max(
+              totalHeadcount - Math.min(totalHeadcount, Math.max(delayedNewness, 0)),
+              Math.min(cappedTrainers, totalHeadcount),
+              0
+            )
             : null;
           proficiencyAbsoluteAdjustedMonthly.push(adjustedAbsoluteProficiency);
         }
