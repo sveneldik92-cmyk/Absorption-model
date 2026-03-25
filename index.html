@@ -1649,10 +1649,11 @@
 
     const removeFromCohorts = (cohorts, amount) => {
       let remainingToRemove = Math.max(amount, 0);
-      for (const cohort of cohorts) {
+      for (let index = cohorts.length - 1; index >= 0; index -= 1) {
         if (remainingToRemove <= 0) {
           break;
         }
+        const cohort = cohorts[index];
         const removable = Math.min(cohort.size, remainingToRemove);
         cohort.size -= removable;
         remainingToRemove -= removable;
