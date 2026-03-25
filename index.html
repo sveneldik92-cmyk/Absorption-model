@@ -1076,11 +1076,11 @@
           <strong>Estimate trainee capacity.</strong> A trainer is someone already in the team before the timeline starts, or a hire cohort that has reached 100% proficiency. The actual headcount entered in Section 5 caps how many trainers can be present in the team. The percentage input in Section 6 defines how much trainer time one trainee requires in normal operations; trainee capacity is then estimated as <em>trainers × (100 ÷ trainer-time-per-trainee%)</em>.
         </li>
         <li>
-          <strong>Apply trainer-capacity delay to training time and downstream outputs.</strong> Training delay is modeled linearly as <em>delay factor = training-adjusted newness ÷ trainee capacity</em> (minimum 1). If demand is 2× capacity, delay factor is 2× and the untrained burden is scaled accordingly. The delay-adjusted newness then feeds the training-share and proficiency outputs. The resulting absolute proficiency is:
+          <strong>Compute training-adjusted newness and compare it to capacity.</strong> Training-adjusted newness is the absolute number of people still not fully trained, calculated as <em>Σ(cohort size × (1 − cohort proficiency by month-since-hire))</em>. Team shrinkage removes the newest cohorts first, so people still in training leave before fully proficient cohorts.
           <div class="note">
-            <em>Absolute proficiency = total headcount − min(total headcount, training-adjusted newness × delay factor)</em>
+            <em>Absolute proficiency = total headcount − min(total headcount, training-adjusted newness)</em>
           </div>
-          Cells are highlighted orange when delay factor is above 1 (capacity-constrained training).
+          Capacity is treated as a hard comparison metric: cells are highlighted red when <em>training-adjusted newness &gt; trainee capacity</em>, and amber still marks months where delay factor is above 1 (capacity-constrained training).
         </li>
       </ol>
     </div>
@@ -1133,7 +1133,7 @@
       },
       {
         title: "Team proficiency (absolute, trainer-capacity adjusted)",
-        note: "Productive team members in absolute count: total headcount − min(total headcount, training-adjusted newness × delay factor).",
+        note: "Productive team members in absolute count: total headcount − min(total headcount, training-adjusted newness).",
         bodyId: "proficiency-absolute-body",
         tableId: "proficiency-absolute-table",
       },
@@ -1145,7 +1145,7 @@
       },
       {
         title: "Training-adjusted new team members",
-        note: "Untrained equivalent demand: Σ(cohort size × (1 − cohort proficiency by month-since-hire)); then multiplied by delay factor max(1, demand ÷ trainee capacity).",
+        note: "Untrained equivalent demand in absolute people: Σ(cohort size × (1 − cohort proficiency by month-since-hire)). Team shrinkage removes newest cohorts first.",
         bodyId: "newness-body",
         tableId: "newness-table",
         chartId: "newness-chart",
@@ -1925,22 +1925,15 @@
           trainingDelayFactorMonthly.push(delayFactor);
 
           const totalHeadcount = team.totalMonthlyHeadcount?.[monthIndex] ?? 0;
-          const delayedNewnessRaw = Number.isFinite(delayFactor)
-            ? demand * delayFactor
-            : totalHeadcount;
-          const delayedNewness = Math.min(Math.max(delayedNewnessRaw, 0), totalHeadcount);
-          delayedNewnessMonthly.push(delayedNewness);
-          const trainedAbsolute = Math.max(totalHeadcount - delayedNewness, 0);
+          const adjustedNewness = Math.min(Math.max(demand, 0), totalHeadcount);
+          delayedNewnessMonthly.push(adjustedNewness);
+          const trainedAbsolute = Math.max(totalHeadcount - adjustedNewness, 0);
           const adjustedProficiencyRatio = totalHeadcount > 0 ? trainedAbsolute / totalHeadcount : 1;
           proficiencyMonthlyAdjusted.push(adjustedProficiencyRatio);
-          budgetChangeMonthlyAdjusted.push(totalHeadcount > 0 ? delayedNewness / totalHeadcount : null);
-          untrainedVsTrainedMonthlyAdjusted.push(trainedAbsolute > 0 ? delayedNewness / trainedAbsolute : null);
+          budgetChangeMonthlyAdjusted.push(totalHeadcount > 0 ? adjustedNewness / totalHeadcount : null);
+          untrainedVsTrainedMonthlyAdjusted.push(trainedAbsolute > 0 ? adjustedNewness / trainedAbsolute : null);
           const adjustedAbsoluteProficiency = Number.isFinite(totalHeadcount)
-            ? Math.max(
-              trainedAbsolute,
-              Math.min(cappedTrainers, totalHeadcount),
-              0
-            )
+            ? trainedAbsolute
             : null;
           proficiencyAbsoluteAdjustedMonthly.push(adjustedAbsoluteProficiency);
         }
@@ -2090,6 +2083,14 @@
           format: (value) => formatNumber(value, 1),
         },
         {
+          key: "absoluteProficiency",
+          label: "Absolute proficient team members",
+          axis: "y",
+          values: team.proficiencyAbsoluteAdjustedMonthly || [],
+          format: (value) => formatNumber(value, 1),
+          severity: (_, index) => (Number(delayFactors[index]) > 1 ? "amber" : ""),
+        },
+        {
           key: "trainable",
           label: "Trainees that can be trained (capacity)",
           axis: "y",
@@ -2110,14 +2111,6 @@
             const cap = capacity[index];
             return Number.isFinite(cap) && Number.isFinite(value) && value > cap ? "red" : "";
           },
-        },
-        {
-          key: "absoluteProficiency",
-          label: "Absolute proficient team members",
-          axis: "y",
-          values: team.proficiencyAbsoluteAdjustedMonthly || [],
-          format: (value) => formatNumber(value, 1),
-          severity: (_, index) => (Number(delayFactors[index]) > 1 ? "amber" : ""),
         },
         {
           key: "proficiencyPct",
