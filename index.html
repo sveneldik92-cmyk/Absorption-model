@@ -1125,7 +1125,7 @@
     const STEP_5_METRICS = [
       {
         title: "Total team size over time",
-        note: "Monthly headcount after actual-headcount overrides: previous month total + monthly hires − monthly exits (if any). Includes a second row per team for required proficient team size from Sections 1–2.",
+        note: "Monthly headcount after actual-headcount overrides: previous month total + monthly hires − monthly exits (if any).",
         bodyId: "team-size-body",
         tableId: "team-size-table",
         chartId: "team-size-chart",
@@ -2134,6 +2134,12 @@
       const trainingShare = (team.budgetChangeMonthly || []).map((value) => (Number.isFinite(value) ? value : null));
       const proficiencyPct = (team.proficiencyMonthly || []).map((value) => (Number.isFinite(value) ? value : null));
       const untrainedVsTrainedPct = (team.untrainedVsTrainedMonthly || []).map((value) => (Number.isFinite(value) ? value : null));
+      const qoqGrowth = (team.totalMonthlyHeadcount || []).map((value, index, allValues) => {
+        if (index < 3 || !Number.isFinite(value) || !Number.isFinite(allValues[index - 3])) {
+          return null;
+        }
+        return value - allValues[index - 3];
+      });
       const capacity = team.traineeCapacityMonthly || [];
       const adjustedNewness = team.newnessMonthly || [];
       const adjustedNewnessHighFit = team.newnessHighFitMonthly || [];
@@ -2146,6 +2152,20 @@
           axis: "y",
           values: team.totalMonthlyHeadcount || [],
           format: (value) => formatNumber(value, 1),
+        },
+        {
+          key: "requiredProficient",
+          label: "Required proficient team size",
+          axis: "y",
+          values: team.requiredMonthlyHeadcount || [],
+          format: (value) => formatNumber(value, 1),
+        },
+        {
+          key: "qoqGrowth",
+          label: "Quarter-over-quarter team growth",
+          axis: "y",
+          values: qoqGrowth,
+          format: (value) => `${value > 0 ? "+" : ""}${formatNumber(value, 1)}`,
         },
         {
           key: "absoluteProficiency",
@@ -2260,6 +2280,7 @@
       }).join("");
 
       teamFocusPanel.innerHTML = `
+        <h3>Team Focus Metrics Explorer</h3>
         <div class="focus-metric-controls">
           <label>
             Team focus
@@ -2307,13 +2328,26 @@
 
       if (focusedMetricView === "chart") {
         const focusCanvas = document.getElementById("focus-team-canvas");
-        const lineColors = ["#2563eb", "#7c3aed", "#0ea5e9", "#f59e0b", "#dc2626", "#059669", "#9333ea"];
+        const lineColors = [
+          "#d62728",
+          "#2ca02c",
+          "#ff7f0e",
+          "#9467bd",
+          "#8c564b",
+          "#17becf",
+          "#e377c2",
+          "#7f7f7f",
+          "#bcbd22",
+          "#1f77b4",
+          "#f59e0b",
+        ];
         const datasets = metrics.map((metric, index) => ({
           label: metric.label,
           data: getTimeSeries(metric.values).map((value) => Number.isFinite(value) ? (metric.axis === "y1" ? value * 100 : Number(value.toFixed(2))) : null),
           borderColor: lineColors[index % lineColors.length],
           backgroundColor: "transparent",
           borderWidth: 2,
+          borderDash: metric.axis === "y1" ? [6, 4] : [],
           tension: 0.28,
           yAxisID: metric.axis,
           pointRadius: 3,
@@ -2396,23 +2430,14 @@
           <tbody>
       `;
 
-      const bodyRows = teams.flatMap((team) => {
+      const bodyRows = teams.map((team) => {
         const totalCells = getTimeSeries(team.totalMonthlyHeadcount).map((value) => {
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
           return `<td>${formatNumber(value, 1)}</td>`;
         });
-        const requiredCells = getTimeSeries(team.requiredMonthlyHeadcount || []).map((value) => {
-          if (!Number.isFinite(value)) {
-            return "<td>-</td>";
-          }
-          return `<td>${formatNumber(value, 1)}</td>`;
-        });
-        return [
-          `<tr><td>${team.name} — Total team size</td>${totalCells.join("")}</tr>`,
-          `<tr><td>${team.name} — Required proficient team size</td>${requiredCells.join("")}</tr>`,
-        ];
+        return `<tr><td>${team.name}</td>${totalCells.join("")}</tr>`;
       });
 
       teamSizeTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
