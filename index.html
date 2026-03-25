@@ -633,11 +633,27 @@
       background: transparent;
     }
 
+    #actual-headcount-table .actual-headcount-input {
+      background: #ffffff;
+      color: var(--table-white-text);
+      border-color: #94a3b8;
+      font-style: normal;
+      font-weight: 600;
+    }
+
+    #actual-headcount-table .actual-headcount-input.manual-override {
+      background: #dbeafe;
+      color: #1e3a8a;
+      border-color: #60a5fa;
+      box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.25);
+    }
+
     #actual-headcount-table .actual-headcount-input.auto-filled {
       background: #e2e8f0;
       color: #64748b;
       border-color: #cbd5e1;
       font-style: italic;
+      font-weight: 500;
     }
 
     #actual-headcount-table .actual-headcount-input.auto-filled:focus {
@@ -650,10 +666,14 @@
     #step-5 input[type="number"],
     #step-5 select {
       width: auto;
-      min-width: 3ch;
-      max-width: 3ch;
-      font-size: 0.75rem;
-      padding-inline: 0.1rem;
+      min-width: 8ch;
+      max-width: none;
+      font-size: 0.85rem;
+      padding: 0.28rem 0.4rem;
+    }
+
+    #step-5 #view-toggle {
+      min-width: 11ch;
     }
 
     #step-2 .compact-table thead th,
@@ -1409,11 +1429,13 @@
           const isManual = input.dataset.manual === "true";
           if (isManual) {
             input.classList.remove("auto-filled");
+            input.classList.add("manual-override");
             return;
           }
           const fallbackValue = modelQuarterValues[index];
           input.value = Number.isFinite(fallbackValue) ? formatNumber(fallbackValue, 1) : "";
           input.classList.add("auto-filled");
+          input.classList.remove("manual-override");
         });
       });
     };
@@ -1440,7 +1462,7 @@
                 .map(
                   (_, index) => `
                     <td class="${getQuarterHighlightClass("step-4b", index, quarterLabels[index])}">
-                      <input class="actual-headcount-input ${row.manualValues[index] ? "" : "auto-filled"}" type="number" min="0" step="0.1" value="${row.values[index]}" placeholder="Auto" data-manual="${row.manualValues[index] ? "true" : "false"}" />
+                      <input class="actual-headcount-input ${row.manualValues[index] ? "manual-override" : "auto-filled"}" type="number" min="0" step="0.1" value="${row.values[index]}" placeholder="Auto" data-manual="${row.manualValues[index] ? "true" : "false"}" />
                     </td>
                   `
                 )
@@ -1632,13 +1654,14 @@
         const newnessMonthly = [];
 
         for (let monthIndex = 0; monthIndex < getMonthLabels().length; monthIndex += 1) {
-          let totalHeadcount = team.current;
+          const totalHeadcount = Number.isFinite(team.totalMonthlyHeadcount?.[monthIndex])
+            ? team.totalMonthlyHeadcount[monthIndex]
+            : team.current;
           let effectiveCapacity = team.current;
 
           const internalHiringMonthly = internalHiringMonthlyByTeam[team.name] || [];
           for (let hireMonth = 0; hireMonth <= monthIndex; hireMonth += 1) {
             const hires = team.hiresMonthly[hireMonth] || 0;
-            totalHeadcount += hires;
             const trainingIndex = monthIndex - hireMonth;
             const quarterShare = internalHiringMonthly[hireMonth] ?? 0;
             const highFitShare = Math.min(Math.max(quarterShare, 0), 100) / 100;
@@ -1649,10 +1672,11 @@
             effectiveCapacity += highFitHires * highFitRate + lowFitHires * lowFitRate;
           }
 
+          const cappedEffectiveCapacity = Math.min(effectiveCapacity, totalHeadcount);
           totalMonthlyHeadcount.push(totalHeadcount);
-          const proficiency = totalHeadcount === 0 ? 1 : effectiveCapacity / totalHeadcount;
+          const proficiency = totalHeadcount === 0 ? 1 : cappedEffectiveCapacity / totalHeadcount;
           proficiencyMonthly.push(proficiency);
-          newnessMonthly.push(Math.max(totalHeadcount - effectiveCapacity, 0));
+          newnessMonthly.push(Math.max(totalHeadcount - cappedEffectiveCapacity, 0));
         }
 
         return {
@@ -2431,6 +2455,7 @@
               const hasManualValue = input.value !== "";
               input.dataset.manual = hasManualValue ? "true" : "false";
               input.classList.toggle("auto-filled", !hasManualValue);
+              input.classList.toggle("manual-override", hasManualValue);
             });
           }
           input.addEventListener("input", recompute);
