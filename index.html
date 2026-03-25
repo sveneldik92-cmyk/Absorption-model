@@ -1124,7 +1124,7 @@
     const STEP_5_METRICS = [
       {
         title: "Total team size over time",
-        note: "Monthly total headcount by team.",
+        note: "Monthly headcount after actual-headcount overrides: previous month total + monthly hires − monthly exits (if any).",
         bodyId: "team-size-body",
         tableId: "team-size-table",
         chartId: "team-size-chart",
@@ -1132,34 +1132,34 @@
         first: true,
       },
       {
+        title: "Team proficiency (absolute, trainer-capacity adjusted)",
+        note: "Productive team members in absolute count: total headcount − min(total headcount, training-adjusted newness × delay factor).",
+        bodyId: "proficiency-absolute-body",
+        tableId: "proficiency-absolute-table",
+      },
+      {
         title: "Trainees that can be trained (capacity)",
-        note: "Capacity is based on eligible trainers and trainer time needed per trainee. Red cells indicate capacity is below training-adjusted new team members.",
+        note: "Training capacity per month = eligible trainers × (100 ÷ trainer-time-per-trainee%). Red cells mean capacity < training-adjusted new team members.",
         bodyId: "trainer-body",
         tableId: "trainer-table",
       },
       {
         title: "Training-adjusted new team members",
-        note: "New hires multiplied by the inverse of their training curve (e.g., 20% proficiency = 80% new), then stretched when trainee demand exceeds trainer capacity.",
+        note: "Untrained equivalent demand: Σ(cohort size × (1 − cohort proficiency by month-since-hire)); then multiplied by delay factor max(1, demand ÷ trainee capacity).",
         bodyId: "newness-body",
         tableId: "newness-table",
         chartId: "newness-chart",
         canvasId: "newness-canvas",
       },
       {
-        title: "Team proficiency (absolute, trainer-capacity adjusted)",
-        note: "Absolute proficient people per team (proficiency % × headcount), reduced when trainer capacity is below training demand. Orange cells indicate training delay due to trainer limits.",
-        bodyId: "proficiency-absolute-body",
-        tableId: "proficiency-absolute-table",
-      },
-      {
         title: "Team members within selected experience band (absolute)",
-        note: "Counts people hired within the selected lower/upper month range (inclusive).",
+        note: "Count of hires whose tenure is within the selected month range [lower, upper], inclusive, for each calendar month.",
         bodyId: "experience-band-body",
         tableId: "experience-band-table",
       },
       {
         title: "Team proficiency over time",
-        note: "Percentage of each team that is fully productive each month.",
+        note: "Monthly proficiency % = absolute proficient team members ÷ total team size.",
         bodyId: "proficiency-body",
         tableId: "proficiency-table",
         chartId: "proficiency-chart",
@@ -1167,7 +1167,7 @@
       },
       {
         title: "Share of team still in training",
-        note: "Untrained population ÷ total population, showing how much of each team is not yet fully productive.",
+        note: "Untrained share = training-adjusted new team members ÷ total team size.",
         bodyId: "budget-change-body",
         tableId: "budget-change-table",
         chartId: "budget-change-chart",
@@ -1175,7 +1175,7 @@
       },
       {
         title: "Untrained vs trained population",
-        note: "Untrained population ÷ trained population, highlighting the training burden relative to experienced staff.",
+        note: "Training burden ratio = training-adjusted new team members ÷ absolute proficient team members.",
         bodyId: "untrained-vs-trained-body",
         tableId: "untrained-vs-trained-table",
         chartId: "untrained-vs-trained-chart",
@@ -1902,7 +1902,7 @@
         const untrainedVsTrainedMonthlyAdjusted = [];
         const proficiencyAbsoluteAdjustedMonthly = [];
         const snapshots = computeMonthlyCohortState(team, trainingCurve, internalHiringMonthlyByTeam);
-        const baseNewnessMonthly = (team.hiresMonthly || []).map((value) =>
+        const baseNewnessMonthly = (team.newnessMonthly || []).map((value) =>
           Number.isFinite(value) ? Math.max(value, 0) : 0
         );
 
