@@ -2314,9 +2314,8 @@
       const teamOptions = teams.map((team) => `<option value="${team.name}"${team.name === focusedTeam.name ? " selected" : ""}>${team.name}</option>`).join("");
 
       const rows = metrics.map((metric) => {
-        const series = getTimeSeries(metric.values);
         const cells = visibleColumnIndexes.map((index) => {
-          const value = series[index];
+          const value = getTimeSeries(metric.values)[index];
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2324,13 +2323,7 @@
           const dot = severity ? `<span class="focus-status-dot ${severity === "red" ? "focus-status-red" : "focus-status-amber"}"></span>` : "";
           return `<td class="${severity === "red" ? "focus-alert-cell" : ""}">${metric.format(value)}${dot}</td>`;
         });
-        const averageValues = visibleColumnIndexes
-          .map((index) => series[index])
-          .filter((value) => Number.isFinite(value));
-        const averageCell = averageValues.length
-          ? `<td>${metric.format(averageValues.reduce((sum, value) => sum + value, 0) / averageValues.length)}</td>`
-          : "<td>-</td>";
-        return `<tr><td>${metric.label}</td>${cells.join("")}${averageCell}</tr>`;
+        return `<tr><td>${metric.label}</td>${cells.join("")}</tr>`;
       }).join("");
 
       teamFocusPanel.innerHTML = `
@@ -2352,7 +2345,6 @@
                 <tr>
                   <th>Metric (${focusedTeam.name})</th>
                   ${visibleColumnIndexes.map((index) => `<th class="focus-time-header" data-time-label="${labels[index]}">${labels[index].replace(" ", "<br>")}</th>`).join("")}
-                  <th>Average</th>
                 </tr>
               </thead>
               <tbody>${rows || `<tr><td colspan="2">All time columns are hidden. Use "Reset hidden columns".</td></tr>`}</tbody>
@@ -2492,33 +2484,26 @@
 
     const renderProficiencyTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
-      const includeAverageColumn = viewToggle.value !== "chart";
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
               ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
-              ${includeAverageColumn ? "<th>Average</th>" : ""}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const series = getTimeSeries(team.proficiencyMonthly);
-        const cells = series.map((value) => {
+        const cells = getTimeSeries(team.proficiencyMonthly).map((value) => {
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
           const className = getHeatClass(value, redThreshold, orangeThreshold);
           return `<td class="${className}">${formatNumber(value * 100)}%</td>`;
         });
-        const numericValues = series.filter((value) => Number.isFinite(value));
-        const averageValue = numericValues.length
-          ? `<td>${formatNumber((numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length) * 100)}%</td>`
-          : "<td>-</td>";
-        return `<tr><td>${team.name}</td>${cells.join("")}${includeAverageColumn ? averageValue : ""}</tr>`;
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
       proficiencyTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
@@ -2526,32 +2511,25 @@
 
     const renderHeadcountTable = (teams, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
-      const includeAverageColumn = viewToggle.value !== "chart";
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
               ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
-              ${includeAverageColumn ? "<th>Average</th>" : ""}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const series = getTimeSeries(team.totalMonthlyHeadcount);
-        const totalCells = series.map((value) => {
+        const totalCells = getTimeSeries(team.totalMonthlyHeadcount).map((value) => {
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
           return `<td>${formatNumber(value, 1)}</td>`;
         });
-        const numericValues = series.filter((value) => Number.isFinite(value));
-        const averageValue = numericValues.length
-          ? `<td>${formatNumber(numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length, 1)}</td>`
-          : "<td>-</td>";
-        return `<tr><td>${team.name}</td>${totalCells.join("")}${includeAverageColumn ? averageValue : ""}</tr>`;
+        return `<tr><td>${team.name}</td>${totalCells.join("")}</tr>`;
       });
 
       teamSizeTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
@@ -2562,32 +2540,25 @@
         return;
       }
       const labels = getTimeLabels(quarterRates);
-      const includeAverageColumn = viewToggle.value !== "chart";
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
               ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
-              ${includeAverageColumn ? "<th>Average</th>" : ""}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const series = getTimeSeries(team.requiredMonthlyHeadcount || []);
-        const cells = series.map((value) => {
+        const cells = getTimeSeries(team.requiredMonthlyHeadcount || []).map((value) => {
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
           return `<td>${formatNumber(value, 1)}</td>`;
         });
-        const numericValues = series.filter((value) => Number.isFinite(value));
-        const averageValue = numericValues.length
-          ? `<td>${formatNumber(numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length, 1)}</td>`
-          : "<td>-</td>";
-        return `<tr><td>${team.name}</td>${cells.join("")}${includeAverageColumn ? averageValue : ""}</tr>`;
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
       requiredProficientTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
@@ -2598,14 +2569,12 @@
         return;
       }
       const labels = getTimeLabels(quarterRates);
-      const includeAverageColumn = viewToggle.value !== "chart";
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
               ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
-              ${includeAverageColumn ? "<th>Average</th>" : ""}
             </tr>
           </thead>
           <tbody>
@@ -2614,20 +2583,15 @@
       const bodyRows = teams.map((team) => {
         const requiredValues = getTimeSeries(team.requiredMonthlyHeadcount || []);
         const absoluteValues = getTimeSeries(team.proficiencyAbsoluteAdjustedMonthly || []);
-        const gapValues = [];
         const cells = absoluteValues.map((value, index) => {
           const required = requiredValues[index];
           if (!Number.isFinite(value) || !Number.isFinite(required)) {
             return "<td>-</td>";
           }
           const gap = value - required;
-          gapValues.push(gap);
           return `<td class="${gap < 0 ? "negative-gap" : ""}">${formatNumber(gap, 1)}</td>`;
         });
-        const averageValue = gapValues.length
-          ? `<td class="${gapValues.reduce((sum, value) => sum + value, 0) / gapValues.length < 0 ? "negative-gap" : ""}">${formatNumber(gapValues.reduce((sum, value) => sum + value, 0) / gapValues.length, 1)}</td>`
-          : "<td>-</td>";
-        return `<tr><td>${team.name}</td>${cells.join("")}${includeAverageColumn ? averageValue : ""}</tr>`;
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
       proficiencyGapTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
@@ -2635,14 +2599,12 @@
 
     const renderNewnessTable = (teams, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
-      const includeAverageColumn = viewToggle.value !== "chart";
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
               ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
-              ${includeAverageColumn ? "<th>Average</th>" : ""}
             </tr>
           </thead>
           <tbody>
@@ -2650,8 +2612,7 @@
 
       const bodyRows = teams.map((team) => {
         const capacityValues = getTimeSeries(team.traineeCapacityMonthly || []);
-        const series = getTimeSeries(team.newnessMonthly);
-        const cells = series.map((value, index) => {
+        const cells = getTimeSeries(team.newnessMonthly).map((value, index) => {
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2659,11 +2620,7 @@
           const isOverCapacity = Number.isFinite(capacity) && value > capacity;
           return `<td class="${isOverCapacity ? "capacity-alert" : ""}">${formatNumber(value, 1)}</td>`;
         });
-        const numericValues = series.filter((value) => Number.isFinite(value));
-        const averageValue = numericValues.length
-          ? `<td>${formatNumber(numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length, 1)}</td>`
-          : "<td>-</td>";
-        return `<tr><td>${team.name}</td>${cells.join("")}${includeAverageColumn ? averageValue : ""}</tr>`;
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
       newnessTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
@@ -2674,32 +2631,25 @@
         return;
       }
       const labels = getTimeLabels(quarterRates);
-      const includeAverageColumn = viewToggle.value !== "chart";
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
               ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
-              ${includeAverageColumn ? "<th>Average</th>" : ""}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const series = getTimeSeries(team[valuesKey] || []);
-        const cells = series.map((value) => {
+        const cells = getTimeSeries(team[valuesKey] || []).map((value) => {
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
           return `<td>${formatNumber(value, 1)}</td>`;
         });
-        const numericValues = series.filter((value) => Number.isFinite(value));
-        const averageValue = numericValues.length
-          ? `<td>${formatNumber(numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length, 1)}</td>`
-          : "<td>-</td>";
-        return `<tr><td>${team.name}</td>${cells.join("")}${includeAverageColumn ? averageValue : ""}</tr>`;
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
       tableElement.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
@@ -2707,14 +2657,12 @@
 
     const renderTrainerTable = (teams, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
-      const includeAverageColumn = viewToggle.value !== "chart";
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
               ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
-              ${includeAverageColumn ? "<th>Average</th>" : ""}
             </tr>
           </thead>
           <tbody>
@@ -2731,11 +2679,7 @@
           const isUnderCapacity = Number.isFinite(demand) && value < demand;
           return `<td class="${isUnderCapacity ? "capacity-alert" : ""}">${formatNumber(value, 1)}</td>`;
         });
-        const numericValues = capacityValues.filter((value) => Number.isFinite(value));
-        const averageValue = numericValues.length
-          ? `<td>${formatNumber(numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length, 1)}</td>`
-          : "<td>-</td>";
-        return `<tr><td>${team.name}</td>${cells.join("")}${includeAverageColumn ? averageValue : ""}</tr>`;
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
       trainerTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
@@ -2743,32 +2687,25 @@
 
     const renderExperienceBandTable = (teams, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
-      const includeAverageColumn = viewToggle.value !== "chart";
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
               ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
-              ${includeAverageColumn ? "<th>Average</th>" : ""}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const series = getTimeSeries(team.experienceBandMonthly);
-        const cells = series.map((value) => {
+        const cells = getTimeSeries(team.experienceBandMonthly).map((value) => {
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
           return `<td>${formatNumber(value, 1)}</td>`;
         });
-        const numericValues = series.filter((value) => Number.isFinite(value));
-        const averageValue = numericValues.length
-          ? `<td>${formatNumber(numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length, 1)}</td>`
-          : "<td>-</td>";
-        return `<tr><td>${team.name}</td>${cells.join("")}${includeAverageColumn ? averageValue : ""}</tr>`;
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
       experienceBandTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
@@ -2777,14 +2714,12 @@
 
     const renderProficiencyAbsoluteTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
-      const includeAverageColumn = viewToggle.value !== "chart";
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
               ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
-              ${includeAverageColumn ? "<th>Average</th>" : ""}
             </tr>
           </thead>
           <tbody>
@@ -2792,8 +2727,7 @@
 
       const bodyRows = teams.map((team) => {
         const requiredValues = getTimeSeries(team.requiredMonthlyHeadcount || []);
-        const series = getTimeSeries(team.proficiencyAbsoluteAdjustedMonthly || []);
-        const cells = series.map((value, index) => {
+        const cells = getTimeSeries(team.proficiencyAbsoluteAdjustedMonthly || []).map((value, index) => {
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2805,11 +2739,7 @@
           const className = getHeatClass(ratio, redThreshold, orangeThreshold);
           return `<td class="${className}">${formatNumber(value, 1)}</td>`;
         });
-        const numericValues = series.filter((value) => Number.isFinite(value));
-        const averageValue = numericValues.length
-          ? `<td>${formatNumber(numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length, 1)}</td>`
-          : "<td>-</td>";
-        return `<tr><td>${team.name}</td>${cells.join("")}${includeAverageColumn ? averageValue : ""}</tr>`;
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
       proficiencyAbsoluteTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
@@ -2817,14 +2747,12 @@
 
     const renderQuarterOverQuarterGrowthTable = (teams) => {
       const labels = getQuarterLabels();
-      const includeAverageColumn = viewToggle.value !== "chart";
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
               ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
-              ${includeAverageColumn ? "<th>Average</th>" : ""}
             </tr>
           </thead>
           <tbody>
@@ -2844,14 +2772,7 @@
           }
           return `<td>${value > 0 ? "+" : ""}${formatNumber(value, 1)}</td>`;
         });
-        const numericValues = quarterGrowth.filter((value) => Number.isFinite(value));
-        const averageRaw = numericValues.length
-          ? numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length
-          : null;
-        const averageValue = Number.isFinite(averageRaw)
-          ? `<td>${averageRaw > 0 ? "+" : ""}${formatNumber(averageRaw, 1)}</td>`
-          : "<td>-</td>";
-        return `<tr><td>${team.name}</td>${cells.join("")}${includeAverageColumn ? averageValue : ""}</tr>`;
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
       qoqGrowthTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
@@ -2859,33 +2780,26 @@
 
     const renderBudgetChangeTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
-      const includeAverageColumn = viewToggle.value !== "chart";
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
               ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
-              ${includeAverageColumn ? "<th>Average</th>" : ""}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const series = getTimeSeries(team.budgetChangeMonthly);
-        const cells = series.map((value) => {
+        const cells = getTimeSeries(team.budgetChangeMonthly).map((value) => {
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
           const className = getHeatClassHighIsBad(value, redThreshold, orangeThreshold);
           return `<td class="${className}">${formatNumber(value * 100, 0)}%</td>`;
         });
-        const numericValues = series.filter((value) => Number.isFinite(value));
-        const averageValue = numericValues.length
-          ? `<td>${formatNumber((numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length) * 100, 0)}%</td>`
-          : "<td>-</td>";
-        return `<tr><td>${team.name}</td>${cells.join("")}${includeAverageColumn ? averageValue : ""}</tr>`;
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
       budgetChangeTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
@@ -2893,33 +2807,26 @@
 
     const renderUntrainedVsTrainedTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
-      const includeAverageColumn = viewToggle.value !== "chart";
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
               ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
-              ${includeAverageColumn ? "<th>Average</th>" : ""}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const series = getTimeSeries(team.untrainedVsTrainedMonthly);
-        const cells = series.map((value) => {
+        const cells = getTimeSeries(team.untrainedVsTrainedMonthly).map((value) => {
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
           const className = getHeatClassHighIsBad(value, redThreshold, orangeThreshold);
           return `<td class="${className}">${formatNumber(value * 100, 0)}%</td>`;
         });
-        const numericValues = series.filter((value) => Number.isFinite(value));
-        const averageValue = numericValues.length
-          ? `<td>${formatNumber((numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length) * 100, 0)}%</td>`
-          : "<td>-</td>";
-        return `<tr><td>${team.name}</td>${cells.join("")}${includeAverageColumn ? averageValue : ""}</tr>`;
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
       untrainedVsTrainedTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
