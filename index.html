@@ -2260,6 +2260,13 @@
           format: (value) => formatNumber(value, 1),
         },
         {
+          key: "experienceBand",
+          label: "Team members within selected experience band [FTEs]",
+          axis: "y",
+          values: team.experienceBandMonthly || [],
+          format: (value) => formatNumber(value, 1),
+        },
+        {
           key: "proficiencyPct",
           label: "Team proficiency [%]",
           axis: "y1",
