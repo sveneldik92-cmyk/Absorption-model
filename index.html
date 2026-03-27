@@ -309,6 +309,15 @@
       background: #dbeafe;
     }
 
+    .metric-time-header {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .metric-time-header:hover {
+      background: #dbeafe;
+    }
+
     .focus-metric-hint {
       color: #475569;
       font-size: 0.8rem;
@@ -1269,7 +1278,10 @@
               <h3>${title}</h3>
               <div class="note">${note}</div>
             </div>
-            <button class="table-toggle-button" type="button" data-target="${bodyId}">Collapse</button>
+            <div class="focus-metric-controls">
+              <button class="table-toggle-button" type="button" data-reset-table="${tableId}">Reset hidden columns</button>
+              <button class="table-toggle-button" type="button" data-target="${bodyId}">Collapse</button>
+            </div>
           </div>
           <div class="table-card-body" id="${bodyId}">
             <div class="table-scroll" id="${tableId}"></div>
@@ -1354,6 +1366,7 @@
     let focusedTeamName = "";
     let hiddenFocusedMetricKeys = new Set();
     let hiddenFocusedTimeLabels = new Set();
+    let hiddenMetricTimeLabels = {};
     let quarterCount = DEFAULT_QUARTER_COUNT;
     let startingQuarter = DEFAULT_STARTING_QUARTER;
     const STORAGE_KEY = "team-growth-proficiency-state";
@@ -2482,21 +2495,57 @@
       }
     };
 
+    const getHiddenMetricTimeLabelSet = (tableId) => {
+      if (!hiddenMetricTimeLabels[tableId]) {
+        hiddenMetricTimeLabels[tableId] = new Set();
+      }
+      return hiddenMetricTimeLabels[tableId];
+    };
+
+    const getVisibleMetricTimeColumnIndexes = (tableId, labels) => {
+      const hiddenSet = getHiddenMetricTimeLabelSet(tableId);
+      return labels
+        .map((label, index) => (hiddenSet.has(label) ? null : index))
+        .filter((index) => index !== null);
+    };
+
+    const buildMetricTimeHeaderCells = (tableId, labels, visibleColumnIndexes) =>
+      visibleColumnIndexes
+        .map((index) => `<th class="metric-time-header" data-table-id="${tableId}" data-time-label="${labels[index]}">${labels[index].replace(" ", "<br>")}</th>`)
+        .join("");
+
+    const bindMetricTimeHeaderClicks = (tableElement, tableId) => {
+      tableElement.querySelectorAll(`.metric-time-header[data-table-id="${tableId}"]`).forEach((headerCell) => {
+        headerCell.addEventListener("click", () => {
+          const label = headerCell.dataset.timeLabel;
+          if (!label) {
+            return;
+          }
+          getHiddenMetricTimeLabelSet(tableId).add(label);
+          recompute();
+        });
+      });
+    };
+
+    const buildAllColumnsHiddenRow = () => '<tr><td colspan="2">All time columns are hidden. Use "Reset hidden columns".</td></tr>';
+
     const renderProficiencyTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
+      const visibleColumnIndexes = getVisibleMetricTimeColumnIndexes("proficiency-table", labels);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${buildMetricTimeHeaderCells("proficiency-table", labels, visibleColumnIndexes)}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const cells = getTimeSeries(team.proficiencyMonthly).map((value) => {
+        const cells = visibleColumnIndexes.map((index) => {
+          const value = getTimeSeries(team.proficiencyMonthly)[index];
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2506,24 +2555,27 @@
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
-      proficiencyTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+      proficiencyTable.innerHTML = `${header}${visibleColumnIndexes.length ? bodyRows.join("") : buildAllColumnsHiddenRow()}</tbody></table>`;
+      bindMetricTimeHeaderClicks(proficiencyTable, "proficiency-table");
     };
 
     const renderHeadcountTable = (teams, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
+      const visibleColumnIndexes = getVisibleMetricTimeColumnIndexes("team-size-table", labels);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${buildMetricTimeHeaderCells("team-size-table", labels, visibleColumnIndexes)}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const totalCells = getTimeSeries(team.totalMonthlyHeadcount).map((value) => {
+        const totalCells = visibleColumnIndexes.map((index) => {
+          const value = getTimeSeries(team.totalMonthlyHeadcount)[index];
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2532,7 +2584,8 @@
         return `<tr><td>${team.name}</td>${totalCells.join("")}</tr>`;
       });
 
-      teamSizeTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+      teamSizeTable.innerHTML = `${header}${visibleColumnIndexes.length ? bodyRows.join("") : buildAllColumnsHiddenRow()}</tbody></table>`;
+      bindMetricTimeHeaderClicks(teamSizeTable, "team-size-table");
     };
 
     const renderRequiredProficientTable = (teams, quarterRates) => {
@@ -2540,19 +2593,21 @@
         return;
       }
       const labels = getTimeLabels(quarterRates);
+      const visibleColumnIndexes = getVisibleMetricTimeColumnIndexes("required-proficient-table", labels);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${buildMetricTimeHeaderCells("required-proficient-table", labels, visibleColumnIndexes)}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const cells = getTimeSeries(team.requiredMonthlyHeadcount || []).map((value) => {
+        const cells = visibleColumnIndexes.map((index) => {
+          const value = getTimeSeries(team.requiredMonthlyHeadcount || [])[index];
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2561,7 +2616,8 @@
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
-      requiredProficientTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+      requiredProficientTable.innerHTML = `${header}${visibleColumnIndexes.length ? bodyRows.join("") : buildAllColumnsHiddenRow()}</tbody></table>`;
+      bindMetricTimeHeaderClicks(requiredProficientTable, "required-proficient-table");
     };
 
     const renderProficiencyGapTable = (teams, quarterRates) => {
@@ -2569,12 +2625,13 @@
         return;
       }
       const labels = getTimeLabels(quarterRates);
+      const visibleColumnIndexes = getVisibleMetricTimeColumnIndexes("proficiency-gap-table", labels);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${buildMetricTimeHeaderCells("proficiency-gap-table", labels, visibleColumnIndexes)}
             </tr>
           </thead>
           <tbody>
@@ -2583,7 +2640,8 @@
       const bodyRows = teams.map((team) => {
         const requiredValues = getTimeSeries(team.requiredMonthlyHeadcount || []);
         const absoluteValues = getTimeSeries(team.proficiencyAbsoluteAdjustedMonthly || []);
-        const cells = absoluteValues.map((value, index) => {
+        const cells = visibleColumnIndexes.map((index) => {
+          const value = absoluteValues[index];
           const required = requiredValues[index];
           if (!Number.isFinite(value) || !Number.isFinite(required)) {
             return "<td>-</td>";
@@ -2594,17 +2652,19 @@
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
-      proficiencyGapTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+      proficiencyGapTable.innerHTML = `${header}${visibleColumnIndexes.length ? bodyRows.join("") : buildAllColumnsHiddenRow()}</tbody></table>`;
+      bindMetricTimeHeaderClicks(proficiencyGapTable, "proficiency-gap-table");
     };
 
     const renderNewnessTable = (teams, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
+      const visibleColumnIndexes = getVisibleMetricTimeColumnIndexes("newness-table", labels);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${buildMetricTimeHeaderCells("newness-table", labels, visibleColumnIndexes)}
             </tr>
           </thead>
           <tbody>
@@ -2612,7 +2672,8 @@
 
       const bodyRows = teams.map((team) => {
         const capacityValues = getTimeSeries(team.traineeCapacityMonthly || []);
-        const cells = getTimeSeries(team.newnessMonthly).map((value, index) => {
+        const cells = visibleColumnIndexes.map((index) => {
+          const value = getTimeSeries(team.newnessMonthly)[index];
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2623,7 +2684,8 @@
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
-      newnessTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+      newnessTable.innerHTML = `${header}${visibleColumnIndexes.length ? bodyRows.join("") : buildAllColumnsHiddenRow()}</tbody></table>`;
+      bindMetricTimeHeaderClicks(newnessTable, "newness-table");
     };
 
     const renderNewnessSplitTable = (tableElement, teams, valuesKey, quarterRates) => {
@@ -2631,19 +2693,21 @@
         return;
       }
       const labels = getTimeLabels(quarterRates);
+      const visibleColumnIndexes = getVisibleMetricTimeColumnIndexes(valuesKey, labels);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${buildMetricTimeHeaderCells(valuesKey, labels, visibleColumnIndexes)}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const cells = getTimeSeries(team[valuesKey] || []).map((value) => {
+        const cells = visibleColumnIndexes.map((index) => {
+          const value = getTimeSeries(team[valuesKey] || [])[index];
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2652,17 +2716,19 @@
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
-      tableElement.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+      tableElement.innerHTML = `${header}${visibleColumnIndexes.length ? bodyRows.join("") : buildAllColumnsHiddenRow()}</tbody></table>`;
+      bindMetricTimeHeaderClicks(tableElement, valuesKey);
     };
 
     const renderTrainerTable = (teams, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
+      const visibleColumnIndexes = getVisibleMetricTimeColumnIndexes("trainer-table", labels);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${buildMetricTimeHeaderCells("trainer-table", labels, visibleColumnIndexes)}
             </tr>
           </thead>
           <tbody>
@@ -2671,7 +2737,8 @@
       const bodyRows = teams.map((team) => {
         const capacityValues = getTimeSeries(team.traineeCapacityMonthly);
         const demandValues = getTimeSeries(team.newnessMonthly);
-        const cells = capacityValues.map((value, index) => {
+        const cells = visibleColumnIndexes.map((index) => {
+          const value = capacityValues[index];
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2682,24 +2749,27 @@
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
-      trainerTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+      trainerTable.innerHTML = `${header}${visibleColumnIndexes.length ? bodyRows.join("") : buildAllColumnsHiddenRow()}</tbody></table>`;
+      bindMetricTimeHeaderClicks(trainerTable, "trainer-table");
     };
 
     const renderExperienceBandTable = (teams, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
+      const visibleColumnIndexes = getVisibleMetricTimeColumnIndexes("experience-band-table", labels);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${buildMetricTimeHeaderCells("experience-band-table", labels, visibleColumnIndexes)}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const cells = getTimeSeries(team.experienceBandMonthly).map((value) => {
+        const cells = visibleColumnIndexes.map((index) => {
+          const value = getTimeSeries(team.experienceBandMonthly)[index];
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2708,18 +2778,20 @@
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
-      experienceBandTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+      experienceBandTable.innerHTML = `${header}${visibleColumnIndexes.length ? bodyRows.join("") : buildAllColumnsHiddenRow()}</tbody></table>`;
+      bindMetricTimeHeaderClicks(experienceBandTable, "experience-band-table");
     };
 
 
     const renderProficiencyAbsoluteTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
+      const visibleColumnIndexes = getVisibleMetricTimeColumnIndexes("proficiency-absolute-table", labels);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${buildMetricTimeHeaderCells("proficiency-absolute-table", labels, visibleColumnIndexes)}
             </tr>
           </thead>
           <tbody>
@@ -2727,7 +2799,8 @@
 
       const bodyRows = teams.map((team) => {
         const requiredValues = getTimeSeries(team.requiredMonthlyHeadcount || []);
-        const cells = getTimeSeries(team.proficiencyAbsoluteAdjustedMonthly || []).map((value, index) => {
+        const cells = visibleColumnIndexes.map((index) => {
+          const value = getTimeSeries(team.proficiencyAbsoluteAdjustedMonthly || [])[index];
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2742,17 +2815,19 @@
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
-      proficiencyAbsoluteTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+      proficiencyAbsoluteTable.innerHTML = `${header}${visibleColumnIndexes.length ? bodyRows.join("") : buildAllColumnsHiddenRow()}</tbody></table>`;
+      bindMetricTimeHeaderClicks(proficiencyAbsoluteTable, "proficiency-absolute-table");
     };
 
     const renderQuarterOverQuarterGrowthTable = (teams) => {
       const labels = getQuarterLabels();
+      const visibleColumnIndexes = getVisibleMetricTimeColumnIndexes("qoq-growth-table", labels);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${buildMetricTimeHeaderCells("qoq-growth-table", labels, visibleColumnIndexes)}
             </tr>
           </thead>
           <tbody>
@@ -2766,7 +2841,8 @@
           }
           return value - quarterHeadcount[index - 1];
         });
-        const cells = quarterGrowth.map((value) => {
+        const cells = visibleColumnIndexes.map((index) => {
+          const value = quarterGrowth[index];
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2775,24 +2851,27 @@
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
-      qoqGrowthTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+      qoqGrowthTable.innerHTML = `${header}${visibleColumnIndexes.length ? bodyRows.join("") : buildAllColumnsHiddenRow()}</tbody></table>`;
+      bindMetricTimeHeaderClicks(qoqGrowthTable, "qoq-growth-table");
     };
 
     const renderBudgetChangeTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
+      const visibleColumnIndexes = getVisibleMetricTimeColumnIndexes("budget-change-table", labels);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${buildMetricTimeHeaderCells("budget-change-table", labels, visibleColumnIndexes)}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const cells = getTimeSeries(team.budgetChangeMonthly).map((value) => {
+        const cells = visibleColumnIndexes.map((index) => {
+          const value = getTimeSeries(team.budgetChangeMonthly)[index];
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2802,24 +2881,27 @@
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
-      budgetChangeTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+      budgetChangeTable.innerHTML = `${header}${visibleColumnIndexes.length ? bodyRows.join("") : buildAllColumnsHiddenRow()}</tbody></table>`;
+      bindMetricTimeHeaderClicks(budgetChangeTable, "budget-change-table");
     };
 
     const renderUntrainedVsTrainedTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
+      const visibleColumnIndexes = getVisibleMetricTimeColumnIndexes("untrained-vs-trained-table", labels);
       const header = `
         <table class="proficiency-table compact-table">
           <thead>
             <tr>
               <th>Team</th>
-              ${labels.map((label) => `<th>${label.replace(" ", "<br>")}</th>`).join("")}
+              ${buildMetricTimeHeaderCells("untrained-vs-trained-table", labels, visibleColumnIndexes)}
             </tr>
           </thead>
           <tbody>
       `;
 
       const bodyRows = teams.map((team) => {
-        const cells = getTimeSeries(team.untrainedVsTrainedMonthly).map((value) => {
+        const cells = visibleColumnIndexes.map((index) => {
+          const value = getTimeSeries(team.untrainedVsTrainedMonthly)[index];
           if (!Number.isFinite(value)) {
             return "<td>-</td>";
           }
@@ -2829,7 +2911,8 @@
         return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
       });
 
-      untrainedVsTrainedTable.innerHTML = `${header}${bodyRows.join("")}</tbody></table>`;
+      untrainedVsTrainedTable.innerHTML = `${header}${visibleColumnIndexes.length ? bodyRows.join("") : buildAllColumnsHiddenRow()}</tbody></table>`;
+      bindMetricTimeHeaderClicks(untrainedVsTrainedTable, "untrained-vs-trained-table");
     };
 
     const chartColors = ["#2563eb", "#7c3aed", "#d97706", "#dc2626", "#0ea5e9"];
@@ -3070,6 +3153,9 @@
       focusedTeamName,
       hiddenFocusedMetricKeys: Array.from(hiddenFocusedMetricKeys),
       hiddenFocusedTimeLabels: Array.from(hiddenFocusedTimeLabels),
+      hiddenMetricTimeLabels: Object.fromEntries(
+        Object.entries(hiddenMetricTimeLabels).map(([key, values]) => [key, Array.from(values)])
+      ),
     });
 
     const saveState = () => {
@@ -3182,6 +3268,14 @@
       }
       if (Array.isArray(stored.hiddenFocusedTimeLabels)) {
         hiddenFocusedTimeLabels = new Set(stored.hiddenFocusedTimeLabels.filter((label) => typeof label === "string"));
+      }
+      if (stored.hiddenMetricTimeLabels && typeof stored.hiddenMetricTimeLabels === "object") {
+        hiddenMetricTimeLabels = Object.fromEntries(
+          Object.entries(stored.hiddenMetricTimeLabels).map(([key, values]) => [
+            key,
+            new Set(Array.isArray(values) ? values.filter((label) => typeof label === "string") : []),
+          ])
+        );
       }
       isRestoring = false;
     };
@@ -3360,6 +3454,24 @@
           button.setAttribute("aria-expanded", String(!isHidden));
         });
         button.dataset.bound = "true";
+      });
+    };
+
+
+    const bindTableColumnResetButtons = () => {
+      document.querySelectorAll(".table-toggle-button[data-reset-table]").forEach((button) => {
+        if (button.dataset.boundReset) {
+          return;
+        }
+        button.addEventListener("click", () => {
+          const tableId = button.dataset.resetTable;
+          if (!tableId) {
+            return;
+          }
+          getHiddenMetricTimeLabelSet(tableId).clear();
+          recompute();
+        });
+        button.dataset.boundReset = "true";
       });
     };
 
@@ -3549,6 +3661,7 @@
     buildTrainingTable(storedState?.trainingCurve || DEFAULT_TRAINING_CURVE);
     bindSectionToggles();
     bindTableToggles();
+    bindTableColumnResetButtons();
     loadState(storedState);
     bindInputs();
     recompute();
