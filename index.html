@@ -674,6 +674,10 @@
       margin: 0;
     }
 
+    .bulk-fill-controls select {
+      min-width: 10ch;
+    }
+
     .percent-input {
       display: inline-flex;
       align-items: center;
@@ -971,6 +975,17 @@
       <p>
         By default, this table is auto-filled from Sections 1–2 (grey cells). Edit any cell to manually override only that team+quarter. Trainer counts use these values as a ceiling.
       </p>
+      <div class="bulk-fill-controls">
+        <label>
+          Smooth from
+          <select id="actual-headcount-smooth-start"></select>
+        </label>
+        <label>
+          Smooth to
+          <select id="actual-headcount-smooth-end"></select>
+        </label>
+        <button type="button" id="apply-actual-headcount-smooth">Smooth selected range</button>
+      </div>
       <div class="table-scroll">
         <table id="actual-headcount-table" class="compact-table proficiency-table unified-quarter-table">
           <thead></thead>
@@ -1211,6 +1226,12 @@
         tableId: "experience-band-table",
       },
       {
+        title: "Team members within selected experience band [% of team]",
+        note: "Percentage of total team size in the selected experience band: band members ÷ total team size.",
+        bodyId: "experience-band-percent-body",
+        tableId: "experience-band-percent-table",
+      },
+      {
         title: "Team proficiency [%]",
         note: "Monthly proficiency % = absolute proficient team members ÷ total team size.",
         bodyId: "proficiency-body",
@@ -1335,6 +1356,7 @@
     const proficiencyAbsoluteTable = document.getElementById("proficiency-absolute-table");
     const qoqGrowthTable = document.getElementById("qoq-growth-table");
     const experienceBandTable = document.getElementById("experience-band-table");
+    const experienceBandPercentTable = document.getElementById("experience-band-percent-table");
     const proficiencyTable = document.getElementById("proficiency-table");
     const proficiencyChart = document.getElementById("proficiency-chart");
     const chartCanvas = document.getElementById("chart-canvas");
@@ -1360,6 +1382,9 @@
     const removeTrainingMonthButton = document.getElementById("remove-training-month");
     const internalHiringFillValueInput = document.getElementById("internal-hiring-fill-value");
     const applyInternalHiringFillButton = document.getElementById("apply-internal-hiring-fill");
+    const actualHeadcountSmoothStart = document.getElementById("actual-headcount-smooth-start");
+    const actualHeadcountSmoothEnd = document.getElementById("actual-headcount-smooth-end");
+    const applyActualHeadcountSmoothButton = document.getElementById("apply-actual-headcount-smooth");
     const chartInstances = new Map();
     let isRestoring = false;
     let timeColumnView = "month";
@@ -1628,6 +1653,60 @@
         )
         .join("");
       updateStep2Layout();
+      populateActualHeadcountSmoothingControls();
+    };
+
+    const populateActualHeadcountSmoothingControls = () => {
+      const quarterLabels = getQuarterLabels();
+      const buildOptions = (selectedLabel) =>
+        quarterLabels
+          .map((label) => `<option value="${label}"${label === selectedLabel ? " selected" : ""}>${label}</option>`)
+          .join("");
+      const currentStart = actualHeadcountSmoothStart.value || quarterLabels[0];
+      const currentEnd = actualHeadcountSmoothEnd.value || quarterLabels[quarterLabels.length - 1];
+      actualHeadcountSmoothStart.innerHTML = buildOptions(currentStart);
+      actualHeadcountSmoothEnd.innerHTML = buildOptions(currentEnd);
+      if (!quarterLabels.includes(actualHeadcountSmoothStart.value)) {
+        actualHeadcountSmoothStart.value = quarterLabels[0] || "";
+      }
+      if (!quarterLabels.includes(actualHeadcountSmoothEnd.value)) {
+        actualHeadcountSmoothEnd.value = quarterLabels[quarterLabels.length - 1] || "";
+      }
+    };
+
+    const applyActualHeadcountSmoothing = () => {
+      const startLabel = actualHeadcountSmoothStart.value;
+      const endLabel = actualHeadcountSmoothEnd.value;
+      const quarterLabels = getQuarterLabels();
+      const startIndex = quarterLabels.indexOf(startLabel);
+      const endIndex = quarterLabels.indexOf(endLabel);
+      if (startIndex < 0 || endIndex < 0 || endIndex <= startIndex) {
+        return;
+      }
+      Array.from(actualHeadcountBody.querySelectorAll("tr")).forEach((row) => {
+        const inputs = Array.from(row.querySelectorAll(".actual-headcount-input"));
+        const startInput = inputs[startIndex];
+        const endInput = inputs[endIndex];
+        const startValue = Number(startInput?.value);
+        const endValue = Number(endInput?.value);
+        if (!Number.isFinite(startValue) || !Number.isFinite(endValue)) {
+          return;
+        }
+        const stepCount = endIndex - startIndex;
+        const increment = (endValue - startValue) / stepCount;
+        for (let index = startIndex; index <= endIndex; index += 1) {
+          const nextInput = inputs[index];
+          if (!nextInput) {
+            continue;
+          }
+          const nextValue = startValue + increment * (index - startIndex);
+          nextInput.value = Number(nextValue.toFixed(1));
+          nextInput.dataset.manual = "true";
+          nextInput.classList.remove("auto-filled");
+          nextInput.classList.add("manual-override");
+        }
+      });
+      recompute();
     };
 
     const buildInternalHiringTable = (teamNames, savedInternalHiring = {}) => {
@@ -2782,6 +2861,36 @@
       bindMetricTimeHeaderClicks(experienceBandTable, "experience-band-table");
     };
 
+    const renderExperienceBandPercentTable = (teams, quarterRates) => {
+      const labels = getTimeLabels(quarterRates);
+      const visibleColumnIndexes = getVisibleMetricTimeColumnIndexes("experience-band-percent-table", labels);
+      const header = `
+        <table class="proficiency-table compact-table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              ${buildMetricTimeHeaderCells("experience-band-percent-table", labels, visibleColumnIndexes)}
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      const bodyRows = teams.map((team) => {
+        const cells = visibleColumnIndexes.map((index) => {
+          const bandValue = getTimeSeries(team.experienceBandMonthly)[index];
+          const totalValue = getTimeSeries(team.totalMonthlyHeadcount)[index];
+          if (!Number.isFinite(bandValue) || !Number.isFinite(totalValue) || totalValue <= 0) {
+            return "<td>-</td>";
+          }
+          return `<td>${formatNumber((bandValue / totalValue) * 100, 1)}%</td>`;
+        });
+        return `<tr><td>${team.name}</td>${cells.join("")}</tr>`;
+      });
+
+      experienceBandPercentTable.innerHTML = `${header}${visibleColumnIndexes.length ? bodyRows.join("") : buildAllColumnsHiddenRow()}</tbody></table>`;
+      bindMetricTimeHeaderClicks(experienceBandPercentTable, "experience-band-percent-table");
+    };
+
 
     const renderProficiencyAbsoluteTable = (teams, redThreshold, orangeThreshold, quarterRates) => {
       const labels = getTimeLabels(quarterRates);
@@ -3041,7 +3150,7 @@
 
     const updateViewToggle = () => {
       const isChart = viewToggle.value === "chart";
-      [teamSizeTable, requiredProficientTable, newnessTable, trainerTable, experienceBandTable, proficiencyTable, budgetChangeTable, untrainedVsTrainedTable, qoqGrowthTable].forEach((table) => {
+      [teamSizeTable, requiredProficientTable, newnessTable, trainerTable, experienceBandTable, experienceBandPercentTable, proficiencyTable, budgetChangeTable, untrainedVsTrainedTable, qoqGrowthTable].forEach((table) => {
         table.classList.toggle("hidden", isChart);
       });
       [teamSizeChart, newnessChart, proficiencyChart, budgetChangeChart, untrainedVsTrainedChart].forEach((chart) => {
@@ -3114,6 +3223,7 @@
       renderNewnessSplitTable(newnessHighFitTable, teamsWithExperienceBand, "newnessHighFitMonthly", quarterProducts);
       renderNewnessSplitTable(newnessLowFitTable, teamsWithExperienceBand, "newnessLowFitMonthly", quarterProducts);
       renderExperienceBandTable(teamsWithExperienceBand, quarterProducts);
+      renderExperienceBandPercentTable(teamsWithExperienceBand, quarterProducts);
       renderProficiencyTable(teamsWithExperienceBand, redThreshold, orangeThreshold, quarterProducts);
       renderCharts(teamsWithExperienceBand, quarterProducts);
       updateViewToggle();
@@ -3628,6 +3738,7 @@
     addTrainingMonthButton.addEventListener("click", () => adjustTrainingMonthCount(1));
     removeTrainingMonthButton.addEventListener("click", () => adjustTrainingMonthCount(-1));
     applyInternalHiringFillButton.addEventListener("click", applyInternalHiringFill);
+    applyActualHeadcountSmoothButton.addEventListener("click", applyActualHeadcountSmoothing);
     window.addEventListener("resize", updateStep2Layout);
     teamTable.addEventListener("paste", handleTeamTablePaste);
     teamTable.addEventListener("input", (event) => {
