@@ -985,6 +985,7 @@
           <select id="actual-headcount-smooth-end"></select>
         </label>
         <button type="button" id="apply-actual-headcount-smooth">Smooth selected range</button>
+        <button type="button" id="clear-actual-headcount-values">Clear all values</button>
       </div>
       <div class="table-scroll">
         <table id="actual-headcount-table" class="compact-table proficiency-table unified-quarter-table">
@@ -1385,6 +1386,7 @@
     const actualHeadcountSmoothStart = document.getElementById("actual-headcount-smooth-start");
     const actualHeadcountSmoothEnd = document.getElementById("actual-headcount-smooth-end");
     const applyActualHeadcountSmoothButton = document.getElementById("apply-actual-headcount-smooth");
+    const clearActualHeadcountValuesButton = document.getElementById("clear-actual-headcount-values");
     const chartInstances = new Map();
     let isRestoring = false;
     let timeColumnView = "month";
@@ -1705,6 +1707,16 @@
           nextInput.classList.remove("auto-filled");
           nextInput.classList.add("manual-override");
         }
+      });
+      recompute();
+    };
+
+    const clearActualHeadcountValues = () => {
+      actualHeadcountBody.querySelectorAll(".actual-headcount-input").forEach((input) => {
+        input.value = "";
+        input.dataset.manual = "false";
+        input.classList.add("auto-filled");
+        input.classList.remove("manual-override");
       });
       recompute();
     };
@@ -3739,6 +3751,7 @@
     removeTrainingMonthButton.addEventListener("click", () => adjustTrainingMonthCount(-1));
     applyInternalHiringFillButton.addEventListener("click", applyInternalHiringFill);
     applyActualHeadcountSmoothButton.addEventListener("click", applyActualHeadcountSmoothing);
+    clearActualHeadcountValuesButton.addEventListener("click", clearActualHeadcountValues);
     window.addEventListener("resize", updateStep2Layout);
     teamTable.addEventListener("paste", handleTeamTablePaste);
     teamTable.addEventListener("input", (event) => {
